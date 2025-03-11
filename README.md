@@ -309,46 +309,6 @@ The order of executed R-scripts to get the complete data and results:
     [129] Rhdf5lib_1.24.2       statmod_1.5.0         rbibutils_2.2.16      igraph_2.0.3         
     [133] broom_1.0.6           dynutils_1.0.11
 
-**Figure_5**
-
-    R version 4.3.0 (2023-04-21 ucrt)
-    Platform: x86_64-w64-mingw32/x64 (64-bit)
-    Running under: Windows 10 x64 (build 19045)
-    
-    Matrix products: default
-    
-    
-    locale:
-    [1] LC_COLLATE=Danish_Denmark.utf8  LC_CTYPE=Danish_Denmark.utf8    LC_MONETARY=Danish_Denmark.utf8 LC_NUMERIC=C                   
-    [5] LC_TIME=Danish_Denmark.utf8    
-    
-    time zone: Europe/Copenhagen
-    tzcode source: internal
-    
-    attached base packages:
-    [1] grid      stats     graphics  grDevices utils     datasets  methods   base     
-    
-    other attached packages:
-     [1] ggeffects_1.7.1       broom.mixed_0.2.9.5   lmerTest_3.1-3        lme4_1.1-35.1         Matrix_1.6-5          ggtree_3.10.1        
-     [7] viridis_0.6.5         viridisLite_0.4.2     circlize_0.4.16       ComplexHeatmap_2.18.0 scales_1.3.0          emmeans_1.10.0       
-    [13] performance_0.12.3    glmmTMB_1.1.10        lubridate_1.9.3       forcats_1.0.0         stringr_1.5.1         dplyr_1.1.4          
-    [19] purrr_1.0.2           readr_2.1.4           tidyr_1.3.0           tibble_3.2.1          ggplot2_3.5.0         tidyverse_2.0.0      
-    [25] here_1.0.1           
-    
-    loaded via a namespace (and not attached):
-     [1] Rdpack_2.6.1        gridExtra_2.3       sandwich_3.1-1      rlang_1.1.4         magrittr_2.0.3      clue_0.3-65         GetoptLong_1.0.5   
-     [8] multcomp_1.4-26     furrr_0.3.1         matrixStats_1.2.0   compiler_4.3.0      mgcv_1.8-42         png_0.1-8           vctrs_0.6.5        
-    [15] pkgconfig_2.0.3     shape_1.4.6.1       crayon_1.5.3        backports_1.4.1     utf8_1.2.4          tzdb_0.4.0          nloptr_2.0.3       
-    [22] aplot_0.2.3         jsonlite_1.8.9      broom_1.0.7         parallel_4.3.0      cluster_2.1.6       R6_2.5.1            stringi_1.8.3      
-    [29] RColorBrewer_1.1-3  parallelly_1.38.0   boot_1.3-31         numDeriv_2016.8-1.1 estimability_1.5.1  Rcpp_1.0.11         iterators_1.0.14   
-    [36] zoo_1.8-12          IRanges_2.36.0      splines_4.3.0       timechange_0.2.0    tidyselect_1.2.1    rstudioapi_0.17.1   doParallel_1.0.17  
-    [43] TMB_1.9.15          codetools_0.2-19    listenv_0.9.1       lattice_0.21-8      treeio_1.26.0       withr_3.0.2         coda_0.19-4.1      
-    [50] future_1.34.0       gridGraphics_0.5-1  survival_3.5-5      pillar_1.9.0        foreach_1.5.2       stats4_4.3.0        reformulas_0.3.0   
-    [57] insight_0.20.5      ggfun_0.1.7         generics_0.1.3      rprojroot_2.0.4     S4Vectors_0.40.2    hms_1.1.3           munsell_0.5.1      
-    [64] tidytree_0.4.6      minqa_1.2.6         globals_0.16.3      xtable_1.8-4        glue_1.8.0          lazyeval_0.2.2      tools_4.3.0        
-    [71] fs_1.6.5            mvtnorm_1.2-4       ape_5.8             rbibutils_2.2.16    colorspace_2.1-0    nlme_3.1-164        patchwork_1.3.0    
-    [78] cli_3.6.2           fansi_1.0.6         gtable_0.3.6        yulab.utils_0.1.7   digest_0.6.33       BiocGenerics_0.48.1 ggplotify_0.1.2    
-    [85] TH.data_1.1-2       rjson_0.2.21        farver_2.1.1        lifecycle_1.0.4     GlobalOptions_0.1.2 MASS_7.3-60.0.1 
 
 **Baseline Tables**
 
