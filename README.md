@@ -81,8 +81,8 @@ The order of executed R-scripts to get the complete data and results:
 
 
   **Figure_1:**
-  
-    R version 4.3.0 (2023-04-21 ucrt)
+
+R version 4.3.0 (2023-04-21 ucrt)
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 Running under: Windows 11 x64 (build 22631)
 
@@ -130,7 +130,7 @@ loaded via a namespace (and not attached):
  [96] munsell_0.5.1         Rcpp_1.0.11           EnvStats_3.0.0        dir.expiry_1.10.0     coda_0.19-4.1        
 [101] png_0.1-8             parallel_4.3.0        basilisk.utils_1.14.1 bitops_1.0-9          mvtnorm_1.2-4        
 [106] viridisLite_0.4.2     scales_1.3.0          insight_0.20.5        crayon_1.5.3          fANCOVA_0.6-1        
-[111] GetoptLong_1.0.5      rlang_1.1.4           multcomp_1.4-26       cowplot_1.1.3         
+[111] GetoptLong_1.0.5      rlang_1.1.4           multcomp_1.4-26       cowplot_1.1.3
 
 
   **Cellprofiler Clean-up, normalization and feature selection**
