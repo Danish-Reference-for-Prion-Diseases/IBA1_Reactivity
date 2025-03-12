@@ -83,54 +83,54 @@ The order of executed R-scripts to get the complete data and results:
   **Figure_1:**
 
     R version 4.3.0 (2023-04-21 ucrt)
-Platform: x86_64-w64-mingw32/x64 (64-bit)
-Running under: Windows 11 x64 (build 22631)
+    Platform: x86_64-w64-mingw32/x64 (64-bit)
+    Running under: Windows 11 x64 (build 22631)
 
-Matrix products: default
+    Matrix products: default
 
 
-locale:
-[1] LC_COLLATE=Danish_Denmark.utf8  LC_CTYPE=Danish_Denmark.utf8    LC_MONETARY=Danish_Denmark.utf8 LC_NUMERIC=C                   
-[5] LC_TIME=Danish_Denmark.utf8    
+    locale:
+    [1] LC_COLLATE=Danish_Denmark.utf8  LC_CTYPE=Danish_Denmark.utf8    LC_MONETARY=Danish_Denmark.utf8 LC_NUMERIC=C                   
+    [5] LC_TIME=Danish_Denmark.utf8    
 
-time zone: Europe/Copenhagen
-tzcode source: internal
+    time zone: Europe/Copenhagen
+    tzcode source: internal
 
-attached base packages:
-[1] grid      stats     graphics  grDevices utils     datasets  methods   base     
+    attached base packages:
+     [1] grid      stats     graphics  grDevices utils     datasets  methods   base     
 
-other attached packages:
- [1] ggh4x_0.2.8              ggrepel_0.9.6            performance_0.12.3       emmeans_1.10.0           lmerTest_3.1-3          
- [6] lme4_1.1-35.1            Matrix_1.6-5             variancePartition_1.32.5 BiocParallel_1.36.0      limma_3.58.1            
-[11] gridExtra_2.3            GGally_2.2.1             circlize_0.4.16          RColorBrewer_1.1-3       ComplexHeatmap_2.18.0   
-[16] plotly_4.10.4            factoextra_1.0.7         lubridate_1.9.3          forcats_1.0.0            stringr_1.5.1           
-[21] dplyr_1.1.4              purrr_1.0.2              readr_2.1.4              tidyr_1.3.0              tibble_3.2.1            
-[26] ggplot2_3.5.0            tidyverse_2.0.0          here_1.0.1               MOFA2_1.12.1            
+    other attached packages:
+     [1] ggh4x_0.2.8              ggrepel_0.9.6            performance_0.12.3       emmeans_1.10.0           lmerTest_3.1-3          
+     [6] lme4_1.1-35.1            Matrix_1.6-5             variancePartition_1.32.5 BiocParallel_1.36.0      limma_3.58.1            
+     [11] gridExtra_2.3            GGally_2.2.1             circlize_0.4.16          RColorBrewer_1.1-3       ComplexHeatmap_2.18.0   
+     [16] plotly_4.10.4            factoextra_1.0.7         lubridate_1.9.3          forcats_1.0.0            stringr_1.5.1           
+     [21] dplyr_1.1.4              purrr_1.0.2              readr_2.1.4              tidyr_1.3.0              tibble_3.2.1            
+     [26] ggplot2_3.5.0            tidyverse_2.0.0          here_1.0.1               MOFA2_1.12.1            
 
-loaded via a namespace (and not attached):
-  [1] rstudioapi_0.17.1     jsonlite_1.8.9        shape_1.4.6.1         magrittr_2.0.3        TH.data_1.1-2        
-  [6] estimability_1.5.1    corrplot_0.95         nloptr_2.0.3          GlobalOptions_0.1.2   zlibbioc_1.48.2      
- [11] vctrs_0.6.5           minqa_1.2.6           htmltools_0.5.8.1     S4Arrays_1.2.1        broom_1.0.7          
- [16] Rhdf5lib_1.24.2       SparseArray_1.2.4     rhdf5_2.46.1          KernSmooth_2.23-20    htmlwidgets_1.6.4    
- [21] basilisk_1.14.3       sandwich_3.1-1        pbkrtest_0.5.3        plyr_1.8.9            zoo_1.8-12           
- [26] lifecycle_1.0.4       iterators_1.0.14      pkgconfig_2.0.3       R6_2.5.1              fastmap_1.2.0        
- [31] rbibutils_2.2.16      MatrixGenerics_1.14.0 clue_0.3-65           digest_0.6.33         numDeriv_2016.8-1.1  
- [36] colorspace_2.1-0      S4Vectors_0.40.2      rprojroot_2.0.4       filelock_1.0.3        fansi_1.0.6          
- [41] timechange_0.2.0      httr_1.4.7            abind_1.4-8           compiler_4.3.0        aod_1.3.3            
- [46] withr_3.0.2           doParallel_1.0.17     backports_1.4.1       ggstats_0.7.0         HDF5Array_1.30.1     
- [51] gplots_3.2.0          MASS_7.3-60.0.1       DelayedArray_0.28.0   rjson_0.2.21          corpcor_1.6.10       
- [56] gtools_3.9.5          caTools_1.18.3        tools_4.3.0           remaCor_0.0.18        glue_1.8.0           
- [61] nlme_3.1-164          rhdf5filters_1.14.1   Rtsne_0.17            cluster_2.1.6         reshape2_1.4.4       
- [66] generics_0.1.3        gtable_0.3.6          tzdb_0.4.0            data.table_1.14.10    hms_1.1.3            
- [71] utf8_1.2.4            XVector_0.42.0        BiocGenerics_0.48.1   foreach_1.5.2         pillar_1.9.0         
- [76] splines_4.3.0         lattice_0.21-8        survival_3.5-5        tidyselect_1.2.1      IRanges_2.36.0       
- [81] RhpcBLASctl_0.23-42   stats4_4.3.0          Biobase_2.62.0        statmod_1.5.0         matrixStats_1.2.0    
- [86] pheatmap_1.0.12       stringi_1.8.3         lazyeval_0.2.2        boot_1.3-31           codetools_0.2-19     
- [91] cli_3.6.2             uwot_0.2.2            xtable_1.8-4          reticulate_1.39.0     Rdpack_2.6.1         
- [96] munsell_0.5.1         Rcpp_1.0.11           EnvStats_3.0.0        dir.expiry_1.10.0     coda_0.19-4.1        
-[101] png_0.1-8             parallel_4.3.0        basilisk.utils_1.14.1 bitops_1.0-9          mvtnorm_1.2-4        
-[106] viridisLite_0.4.2     scales_1.3.0          insight_0.20.5        crayon_1.5.3          fANCOVA_0.6-1        
-[111] GetoptLong_1.0.5      rlang_1.1.4           multcomp_1.4-26       cowplot_1.1.3
+    loaded via a namespace (and not attached):
+     [1] rstudioapi_0.17.1     jsonlite_1.8.9        shape_1.4.6.1         magrittr_2.0.3        TH.data_1.1-2        
+     [6] estimability_1.5.1    corrplot_0.95         nloptr_2.0.3          GlobalOptions_0.1.2   zlibbioc_1.48.2      
+     [11] vctrs_0.6.5           minqa_1.2.6           htmltools_0.5.8.1     S4Arrays_1.2.1        broom_1.0.7          
+     [16] Rhdf5lib_1.24.2       SparseArray_1.2.4     rhdf5_2.46.1          KernSmooth_2.23-20    htmlwidgets_1.6.4    
+     [21] basilisk_1.14.3       sandwich_3.1-1        pbkrtest_0.5.3        plyr_1.8.9            zoo_1.8-12           
+     [26] lifecycle_1.0.4       iterators_1.0.14      pkgconfig_2.0.3       R6_2.5.1              fastmap_1.2.0        
+     [31] rbibutils_2.2.16      MatrixGenerics_1.14.0 clue_0.3-65           digest_0.6.33         numDeriv_2016.8-1.1  
+     [36] colorspace_2.1-0      S4Vectors_0.40.2      rprojroot_2.0.4       filelock_1.0.3        fansi_1.0.6          
+     [41] timechange_0.2.0      httr_1.4.7            abind_1.4-8           compiler_4.3.0        aod_1.3.3            
+     [46] withr_3.0.2           doParallel_1.0.17     backports_1.4.1       ggstats_0.7.0         HDF5Array_1.30.1     
+     [51] gplots_3.2.0          MASS_7.3-60.0.1       DelayedArray_0.28.0   rjson_0.2.21          corpcor_1.6.10       
+     [56] gtools_3.9.5          caTools_1.18.3        tools_4.3.0           remaCor_0.0.18        glue_1.8.0           
+     [61] nlme_3.1-164          rhdf5filters_1.14.1   Rtsne_0.17            cluster_2.1.6         reshape2_1.4.4       
+     [66] generics_0.1.3        gtable_0.3.6          tzdb_0.4.0            data.table_1.14.10    hms_1.1.3            
+     [71] utf8_1.2.4            XVector_0.42.0        BiocGenerics_0.48.1   foreach_1.5.2         pillar_1.9.0         
+     [76] splines_4.3.0         lattice_0.21-8        survival_3.5-5        tidyselect_1.2.1      IRanges_2.36.0       
+     [81] RhpcBLASctl_0.23-42   stats4_4.3.0          Biobase_2.62.0        statmod_1.5.0         matrixStats_1.2.0    
+     [86] pheatmap_1.0.12       stringi_1.8.3         lazyeval_0.2.2        boot_1.3-31           codetools_0.2-19     
+     [91] cli_3.6.2             uwot_0.2.2            xtable_1.8-4          reticulate_1.39.0     Rdpack_2.6.1         
+     [96] munsell_0.5.1         Rcpp_1.0.11           EnvStats_3.0.0        dir.expiry_1.10.0     coda_0.19-4.1        
+     [101] png_0.1-8             parallel_4.3.0        basilisk.utils_1.14.1 bitops_1.0-9          mvtnorm_1.2-4        
+     [106] viridisLite_0.4.2     scales_1.3.0          insight_0.20.5        crayon_1.5.3          fANCOVA_0.6-1        
+     [111] GetoptLong_1.0.5      rlang_1.1.4           multcomp_1.4-26       cowplot_1.1.3
 
 
   **Cellprofiler Clean-up, normalization and feature selection**
