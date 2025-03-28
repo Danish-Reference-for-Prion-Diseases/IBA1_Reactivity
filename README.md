@@ -4,7 +4,7 @@ Code and data for article: "Combined protein and morphological profiling charact
 
 If not done beforehand, please extract ALL contents of the .zip file before running R-scripts or R-markdown files through Rstudio using the R-project.
 
-Please install missing packages/dependencies before running each R-script (using default install.packages() functionin R):
+Please install missing packages/dependencies before running each R-script (using default install.packages() function in R):
 Note, some packages are from Bioconductor that will need to be installed through it (https://www.bioconductor.org/install/). This includes packages: 
 - ComplexHeatmap (https://bioconductor.org/packages/release/bioc/html/ComplexHeatmap.html)
 - variancePartition (https://www.bioconductor.org/packages/release/bioc/html/variancePartition.html)
@@ -17,13 +17,13 @@ Figure_2 employs a package ("JLutils") that needs to fetched remotely from GitHu
 The R-scripts utilize relative pathfinding with the "here" package and should be able to run with the correct corresponding data. 
 
 The recommended order of executed R-scripts to see the complete data analysis and results:
-0. QC_Segments_Targets (utilizing Nanostring's own Geoscript for Segment and Target QC Evaluation - optional)
-1. GeoMx Evaluation and Clean-up
-2. Figure_1
-3. Cellprofiler Clean-up, normalization and feature selection
-4. Figure_2
-(5. Add_ID for MoBIE)
-6. Figure_4
+ 0. QC_Segments_Targets (utilizing Nanostring's own Geoscript for Segment and Target QC Evaluation - optional)
+ 1. GeoMx Evaluation and Clean-up
+ 2. Figure_1
+ 3. Cellprofiler Clean-up, normalization and feature selection
+ 4. Figure_2
+ (5. Add_ID for MoBIE)
+ 6. Figure_4
 
 (Baseline Tables is standalone and can be executed whenever)
 
