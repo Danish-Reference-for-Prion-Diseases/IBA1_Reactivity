@@ -35,7 +35,9 @@ The recommended order of executed R-scripts to see the complete data analysis an
 (Baseline Tables is standalone and can be executed whenever)
 
 
+
 To inspect the cellprofiler pipeline, CellProfiler needs to be installed (https://cellprofiler.org/). Version 4.2.6 was used to create this particular pipeline.
+
 
 
 **Session infos:**
