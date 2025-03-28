@@ -1,0 +1,96 @@
+#Add_ID for MoBIE
+
+#Libraries
+```{r}
+library(here)
+library("caroline")
+library(tidyverse)
+library(viridis)
+library(ggplot2)
+```
+
+#Datasets
+```{r}
+file_path <- here("Data", "Cellprofiler (morphology)", "MoBIE")
+cp_data <- read.delim(here(file_path,"Microglia_total.txt"))# A Raw datafile of the total IBA1+ Objects from CP
+cluster_id <- read.delim(here(file_path, "Microglia_clusterID.txt")) #Clust ID From the Cluster analysis
+geomx_data <- read.csv(here("Data", "GeoMx (protein)", "3. HK normalized Log2 Transformed GeoMx Data.csv"))#Processed GeoMx Data
+```
+
+#Add color to clustered IBA1+ objects
+```{r}
+#Combine cluster_id with data
+data_with_cluster <- merge(cp_data, cluster_id, by = c("ImageNumber", "ObjectNumber"), all.y=TRUE, all.x = TRUE)
+
+#Imputate Nans with zero
+data_with_cluster <- data_with_cluster %>% mutate(Cluster = ifelse(is.na(Cluster), 0, Cluster))
+
+#Transform cluster to string
+data_with_cluster$Cluster <- as.character(data_with_cluster$Cluster)
+data_with_cluster <- transform(data_with_cluster, Cluster = sprintf("Cluster%s", Cluster))
+
+#Add color scheme
+data_with_cluster <- data_with_cluster %>% mutate(figuresColorScheme=case_when(
+  Cluster=="Cluster0"~"224-224-224-220",
+  Cluster=="Cluster1"~"0-123-255-220",
+  Cluster=="Cluster2"~"220-20-60-220",
+  Cluster=="Cluster3"~"225-165-0-220"))
+```
+
+#Merge GeoMx and CellProfiler data
+```{r}
+#Rename columns before merging geomx data and cellprofiler data
+colnames(geomx_data)[6] <- "ROI_Label" #Rename
+colnames(data_with_cluster)[5] <- "ROI_Label" #Rename
+
+data_with_cluster$ROI_Label <- gsub("mask-", "", data_with_cluster$FileName_ROI_Mask)#Create ROI Label in morph data
+data_with_cluster$ROI_Label <- gsub(".tif", "", data_with_cluster$ROI_Label)#Create ROI Label in morph data
+
+#Merge
+data_with_geomx <- merge(data_with_cluster, geomx_data, by = "ROI_Label", all.y=TRUE, all.x = TRUE)
+
+#Add label ID
+label_id <- 1:nrow(data_with_geomx)
+data_with_id<- cbind(label_id, data_with_geomx)
+
+#Replace NA with zero
+data_with_id[is.na(data_with_id)] <- 0
+```
+
+#Export
+```{r}
+write.delim(data_with_id, here(file_path, "Microglia_total_withID.txt"),
+            row.names = FALSE, sep = "\t")
+```
+
+
+
+#####Legends for MoBIE
+```{r}
+#ROI - CD11c expression
+ggplot() +
+  scale_color_viridis(limits = c(6, 10)) +
+  geom_point(aes(x = 1, y = 1, color = 5), alpha = 0) +
+  guides(color = guide_colorbar(title = "CD11c Expression (Log2)")) +
+  theme_void() +
+  theme(legend.title = element_text(hjust = 0.5),
+        legend.spacing.y = unit(0.5, "cm"),
+        legend.position = "bottom",        axis.ticks.length=unit(.5, "cm"))
+```
+
+```{r}
+#Segments - Object Cluster ID
+par(family = "sans")
+plot(1, 1, type = "n", xlab = "", ylab = "", xlim = c(0, 2), ylim = c(0, 2), axes = FALSE)
+legend(
+  x = "center",
+  legend = c("Cluster 1", "Cluster 2.1", "Cluster 2.2", "Outlier"), 
+  horiz = FALSE, 
+  bty = "n", 
+  pch = 20, 
+  col = c("#007BFF", "#DC143C", "#E1A500", "lightgrey"),
+  text.col = "black",
+  cex = 1, 
+  pt.cex = 2
+)
+```

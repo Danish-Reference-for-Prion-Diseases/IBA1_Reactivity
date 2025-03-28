@@ -1,0 +1,741 @@
+#Libraries
+library(here)
+library(tidyverse)
+library(factoextra)
+library(plotly)
+library(RColorBrewer)
+library(circlize)
+library(GGally)
+library(gridExtra)
+library("variancePartition")
+library(lme4)
+library(emmeans)
+library(performance)
+library(ggrepel)
+library("ggh4x")
+library(cowplot)
+library(SCORPIUS)
+library(ComplexHeatmap)
+library(viridis)
+library(MOFA2)
+
+#Colors
+pt_colors <- c("Patient 1"="#b15928", "Patient 2" = "#ffff99", "Patient 3" = "#6a3d9a",
+  "Patient 4" = "#cab2d6", "Patient 5" = "#ff7f00", "Patient 6" = "#fdbf6f",
+  "Patient 7" = "#e31a1c", "Patient 8" = "#fb9a99", "Patient 9" = "#34a02c",
+  "Patient 10"="#b2df8a", "Patient 11" = "#1f78b4", "Patient 12" = "#a6cee3")
+
+disease_color <- c("CJD" = "#C6D300", "AD" = "#D6390E", "CTRL" = "#390F6E")
+
+layer_color <- c("WM" = "#56B4E9", "dGM" = "#009E73", "sGM"= "#dbc300")
+
+region_color <- c("FC" = "orange", "OCC" = "#000000")  
+
+###########DATA##############
+#Aggregated Cellprofiler Data
+Morph_data <- read.csv(here("Data", "Cellprofiler (morphology)", "Feature selected profiles", "AggregatedMicroglia_profile.csv"))
+
+##Add Additional Data
+#Add Age
+Age <- Morph_data %>% mutate(age=case_when(
+  Patient=="Patient 1"~53,
+  Patient=="Patient 2"~56,
+  Patient=="Patient 3"~92,
+  Patient=="Patient 4"~64,
+  Patient=="Patient 5"~57,
+  Patient=="Patient 6"~77,
+  Patient=="Patient 7"~66,
+  Patient=="Patient 8"~78,
+  Patient=="Patient 9"~83,
+  Patient=="Patient 10"~85,
+  Patient=="Patient 11"~59,
+  Patient=="Patient 12"~83
+)) %>% pull(age)
+
+Morph_data <- cbind(Age, Morph_data)
+Morph_data$Age <- as.numeric(Morph_data$Age)
+
+#Add Sex
+Sex <- Morph_data %>% mutate(sex=case_when(
+  Patient=="Patient 1"~"Female",
+  Patient=="Patient 2"~"Female",
+  Patient=="Patient 3"~"Female",
+  Patient=="Patient 4"~"Female",
+  Patient=="Patient 5"~"Male",
+  Patient=="Patient 6"~"Female",
+  Patient=="Patient 7"~"Male",
+  Patient=="Patient 8"~"Female",
+  Patient=="Patient 9"~"Female",
+  Patient=="Patient 10"~"Male",
+  Patient=="Patient 11"~"Male",
+  Patient=="Patient 12"~"Male"
+)) %>% pull(sex)
+
+Morph_data <- cbind(Sex, Morph_data)
+
+features <- Morph_data[,13:ncol(Morph_data)]
+  
+##Geomx Protein Data
+Protein_data <- read.csv(here("Data", "GeoMx (protein)", "3. HK normalized Log2 Transformed GeoMx Data.csv"))
+colnames(Protein_data) <- gsub("\\.", " ", colnames(Protein_data))
+Protein_data <- Protein_data %>% select(-S6, -GAPDH, -`Histone H3`) # Discard Housekeeper proteins
+
+
+
+#####AGGREGATED MORPH FEATURES EXPLORATION####################
+#Variance Check
+variance_per_feature <- sort(apply(features, 2, var), decreasing = T)
+variance_per_feature
+
+####PCA ANALYSIS
+###Compute PCA
+prin_comp <- prcomp(features, scale = FALSE)
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components <- cbind(components,Morph_data[,1:12])
+
+
+###Initial Exploration
+#scree plot
+fviz_eig(prin_comp, ncp = 40)
+
+#Scatter matrix
+interest <- components$Metadata_Pt_type #Change for different variable
+ggpairs(components[, 1:4], 
+        legend = 1,
+        aes(color = as.factor(interest), fill = as.factor(interest)),
+        upper = list(continuous = "points"),  
+        lower = list(continuous = "points"),  
+        diag = list(continuous = "barDiag")) +  
+  scale_color_manual(values = c("#0072B2", "#E69F00", "#999999")) +  
+  scale_fill_manual(values = c("#0072B2", "#E69F00", "#999999")) + 
+  theme(legend.position = "bottom")  
+
+#Plot of variables loading
+loading <- fviz_pca_var(prin_comp, axes = c(1, 3), title="", xlim = c(-0.2,0.4), ylim = c(-0.3,0.3),
+                        col.var = "contrib", 
+                        gradient.cols = c("#00AFBB", "#FC4E07"),
+                        repel = TRUE , geom = "arrow"
+                        
+) + labs(color="Loading") + xlab(paste('PC 1 (',toString(round(explained_variance_ratio[1],1)),'%)',sep = '')) + 
+  ylab(paste('PC 3 (',toString(round(explained_variance_ratio[3],1)),'%)',sep = ''))+
+  theme(
+    axis.title.x = element_text(size = 18),
+    axis.title.y = element_text(size = 18),
+    axis.text = element_text(size = 14),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+loading
+
+#Inclusion of Labels
+label_df <- data.frame(x = loading$data$x, y = loading$data$y, label = loading$data$name)
+label_df$contrib <- loading$data$contrib
+
+#Isolate the 12 most contributing features
+top_label_df <- label_df[order(-label_df$contrib), ][1:12, ]
+#top_label_df <- top_label_df[-11,] #For better visualization in publication
+
+#Rename
+top_label_df <- top_label_df %>% mutate(label = recode(label,
+                "Total_AreaShape_MaximumRadius" = "Total - Maximum Radius",
+                "Total_AreaShape_Zernike_2_0" = "Total - Zernike 2.0",
+                "Total_AreaShape_MeanRadius" = "Total - Mean Radius",
+                "Total_AreaShape_EquivalentDiameter" = "Total - Equivalent Diameter",
+                "Total_AreaShape_Extent" = "Total - Extent",
+                "Total_Texture_SumEntropy_IBA1_3_02_256" = "Total - Texture Sum Entropy(.2)",
+                "Total_AreaShape_MajorAxisLength" = "Total - Major Axis Length",
+                "Total_Texture_Correlation_IBA1_3_00_256" = "Total - Texture Correlation(.0)",
+                "Total_Texture_Correlation_IBA1_3_01_256" = "Total - Texture Correlation(.1)",
+                "Total_Texture_Correlation_IBA1_3_03_256" = "Total - Texture Correlation(.3)",
+                "Total_Texture_Correlation_IBA1_3_02_256" = "Total - Texture Correlation(.2)",
+                "Soma_Texture_Correlation_IBA1_3_02_256" = "Soma - Texture Correlation(.2)"
+))
+
+loading_with_labels <- loading + 
+  geom_text_repel(data = top_label_df, 
+                  aes(x = x, y = y, label = label, colour = contrib), 
+                  size = log(abs(top_label_df$contrib))+2.75, direction = "both",
+                  segment.linetype = "dotted", nudge_y = ifelse(top_label_df$y>0, +0.05, -0.025), nudge_x = 0.02,
+                  show.legend = FALSE) +
+  scale_colour_gradientn(colours = c("#00AFBB", "#FC4E07"), 
+                         limits = c(0, 10), 
+                         breaks = c(0, 5, 10))
+loading_with_labels
+
+
+##2D PCA Proper
+#Reorder factors for plotting
+components$Metadata_Pt_type <- ordered(as.factor(components$Metadata_Pt_type), levels = c("CJD", "AD", "CTRL"))
+components$Metadata_Cortex_region <- ordered(as.factor(components$Metadata_Cortex_region), levels = c("OCC", "FC")) 
+components$Metadata_Layer <- ordered(as.factor(components$Metadata_Layer), levels = c("WM", "dGM", "sGM")) 
+components$Patient <- ordered(as.factor(components$Patient), levels = c("Patient 12", "Patient 11", "Patient 10", "Patient 9", "Patient 8", "Patient 7",
+                                                                        "Patient 6", "Patient 5","Patient 4","Patient 3", "Patient 2", "Patient 1")) 
+components$Slide <- ordered(as.factor(components$Slide), levels = c("Slide 12", "Slide 11", "Slide 10", "Slide 9", "Slide 8", "Slide 7",
+                                                                    "Slide 6", "Slide 5","Slide 4","Slide 3", "Slide 2", "Slide 1"))
+
+
+m <- list(
+  l = 100,
+  r = 136,
+  t = 100,
+  b = 100)
+tit = ""
+
+# Define axis settings to have a fixed range from -3 to 3 and ensure square aspect ratio
+axis_settings <- list(
+  range = c(-3.99, 3.99),                
+  zerolinecolor = "#ffff",         
+  zerolinewidth = 2,               
+  gridcolor = '#ffff',             
+  fixedrange = TRUE,
+  dtick = 2,
+  tickfont = list(size=16)
+)
+
+# Define the aspect ratio for square plots
+aspect_ratio_settings <- list(
+  x = 1, y = 1                     
+)
+
+# PCA2D - Patient ID
+fig_pca2d_1 <- plot_ly(components, type = "scatter", x = ~PC1, y = ~PC3, color = ~as.factor(Patient), 
+                       colors = pt_colors,
+                       mode = "markers", legendgroup = "Patient ID", marker = list(size = 5.5, symbol = "circle"), 
+                       showlegend = FALSE) %>% 
+  layout(xaxis = axis_settings, 
+         yaxis = axis_settings, 
+         autosize = FALSE, 
+         width = 300, height = 300,   
+         scene = list(aspectratio = aspect_ratio_settings)) %>%  
+  add_annotations(text = "<b>Patient ID</b>", x = 0.5, y = 1.1, yref = "paper", xref = "paper", 
+                  xanchor = "center", yanchor = "top", showarrow = FALSE, font = list(size = 20))
+
+# PCA2D - Disease
+fig_pca2d_2 <- plot_ly(components, type = "scatter", x = ~PC1, y = ~PC3, color = ~as.factor(Metadata_Pt_type), 
+                       colors = disease_color, mode = "markers", 
+                       legendgroup = "Disease", marker = list(size = 5.5)) %>% 
+  layout(xaxis = axis_settings, 
+         yaxis = axis_settings, 
+         autosize = FALSE, 
+         width = 300, height = 300,   
+         scene = list(aspectratio = aspect_ratio_settings)) %>%  
+  add_annotations(text = "<b>Disease Group</b>", x = 0.5, y = 1.1, yref = "paper", xref = "paper", 
+                  xanchor = "center", yanchor = "top", showarrow = FALSE, font = list(size = 20))
+
+# PCA2D - Brain Region 
+fig_pca2d_3 <- plot_ly(components, type = "scatter", x = ~PC1, y = ~PC3, color = ~as.factor(Metadata_Cortex_region), 
+                       colors = region_color, mode = "markers", legendgroup = "Brain Region", 
+                       marker = list(size = 5.5)) %>%
+  layout(xaxis = axis_settings, 
+         yaxis = axis_settings, 
+         autosize = FALSE, 
+         width = 300, height = 300,   
+         scene = list(aspectratio = aspect_ratio_settings)) %>%  
+  add_annotations(text = "<b>Brain Region</b>", x = 0.5, y = 1.1, yref = "paper", xref = "paper", 
+                  xanchor = "center", yanchor = "top", showarrow = FALSE, font = list(size = 20))
+
+# PCA2D - Cortex Layer
+fig_pca2d_4 <- plot_ly(components, type = "scatter", x = ~PC1, y = ~PC3, color = ~as.factor(Metadata_Layer), 
+                       colors = layer_color, mode = "markers", 
+                       legendgroup = "Cortex Layer", marker = list(size = 5.5)) %>%
+  layout(xaxis = axis_settings, 
+         yaxis = axis_settings, 
+         autosize = FALSE, 
+         width = 300, height = 300,   
+         scene = list(aspectratio = aspect_ratio_settings)) %>%  
+  add_annotations(text = "<b>Cortex Layer</b>", x = 0.5, y = 1.1, yref = "paper", xref = "paper", 
+                  xanchor = "center", yanchor = "top", showarrow = FALSE, font = list(size = 20))
+
+# Main 2D PCA PLOT
+fig_pca2d <- subplot(
+  fig_pca2d_1,
+  fig_pca2d_2,
+  fig_pca2d_3,
+  fig_pca2d_4,
+  nrows = 2, margin = c(0.05,0.05,0.05,0.05)
+) %>% 
+  layout(
+    title = list(text = tit, font = list(size = 24), x=0.47),  
+    plot_bgcolor = '#e5ecf6',
+    margin = m,
+    autosize = FALSE,
+    xaxis = axis_settings,   
+    yaxis = axis_settings,
+    width = 850, height = 850,  
+    legend = list(tracegroupgap = 40, y = 0.63, yanchor = "top", itemsizing = 'constant', font = list(size = 13)),
+    scene = list(aspectratio = aspect_ratio_settings)  
+  ) %>%
+  config(
+    toImageButtonOptions = list(
+      format = "svg",
+      filename = "myplot",
+      width = NULL,
+      height = NULL
+    )
+  ) %>%
+  add_annotations(text = "<b>Disease Group<b>", xref = "paper", yref = "paper",
+                  x = 1.02, xanchor = "left",
+                  y = 0.622, yanchor = "bottom",
+                  legendtitle = TRUE, font = list(size=15), showarrow = FALSE) %>%
+  add_annotations(text = "<b>Brain Region<b>", xref = "paper", yref = "paper",
+                  x = 1.02, xanchor = "left",
+                  y = 0.47, yanchor = "bottom",
+                  legendtitle = TRUE, font = list(size=15), showarrow = FALSE) %>%
+  add_annotations(text = "<b>Cortex Layer<b>", xref = "paper", yref = "paper",
+                  x = 1.02, xanchor = "left",
+                  y = 0.35, yanchor = "bottom",
+                  legendtitle = TRUE, font = list(size=15), showarrow = FALSE) %>%
+  add_annotations(text = paste('PC 1 (', toString(round(explained_variance_ratio[1], 1)), '%)', sep = ''), 
+                  xref = 'paper', yref = 'paper', x = 0.5, y = -0.1, font = list(color = "black", size = 24),
+                  showarrow = F) %>%
+  add_annotations(text = paste('PC 3 (', toString(round(explained_variance_ratio[3], 1)), '%)', sep = ''), 
+                  xref = 'paper', yref = 'paper', x = -0.11, y = 0.5, font = list(color = "black", size = 24),
+                  textangle = 270, showarrow = F)
+fig_pca2d
+
+
+##### Extra - Variance Partitioning###############
+t_features <- t(features)
+metadata <- Morph_data[,1:12]
+
+#Model
+reduced <- ~ (1|Metadata_Cortex_region) + (1|Metadata_Layer) + (1|Metadata_Pt_type)+ (1|Metadata_Pt_type:Metadata_Cortex_region) + (1|Metadata_Pt_type:Metadata_Layer) + (1|Sex) + Age
+
+#Partioning
+varPart <- fitExtractVarPartModel(t_features, reduced, metadata)
+
+#Rename and reorder
+colnames(varPart) <- c("Brain Region", "Cortex Layer", "Disease", 
+                       "Disease:Brain Region", "Disease:Cortex Layer", "Sex", "Age", "Residuals")
+varPart <- varPart[order((varPart$Residuals), decreasing = F), ]
+varCol <- c("#0044CC", "#FFD700", "#FF4500","#8B0000", "orange", "#9467BD", "#87CEFA",
+            "lightgrey")
+
+#Variance Partioning Variables Overview
+variables_var <- plotVarPart(varPart, col =varCol) + ylab("Variance Explained (%)")
+variables_var
+
+#Variance Partioning of all morphometrical features
+morph_var <- plotPercentBars(varPart[1:73, ], 
+                                col =varCol) + theme(
+                                         legend.position = "right", 
+                                         legend.box = "horizontal",
+                                         legend.title = element_blank(),
+                                         legend.key.size = unit(1, "lines")
+                                       )
+morph_var
+
+
+
+############Interaction plots of features of interest##############
+interaction_plot <- function(feature_name, title) {
+  fit_interact <- lmer(Morph_data[[feature_name]] ~ Metadata_Pt_type * Metadata_Cortex_region * Metadata_Layer + (1 | Patient/Metadata_Sample_number), data = Morph_data)
+  
+  print("!!!!!!!!!!!!!!!!!Model Specifications!!!!!!!!!!!!!!")
+  print(fit_interact)
+  
+  windows(width = 15, height = 15)
+  print(performance::check_model(fit_interact))
+  
+  #Reorder
+  interaction_plot <- emmip(fit_interact, Metadata_Pt_type ~ Metadata_Layer | Metadata_Cortex_region, plotit = FALSE, CIs = TRUE)
+  interaction_plot$Metadata_Pt_type <- ordered(as.factor(interaction_plot$Metadata_Pt_type), levels = c("CTRL", "AD", "CJD"))
+  interaction_plot$Metadata_Layer <- ordered(as.factor(interaction_plot$Metadata_Layer), levels = c("sGM", "dGM", "WM"))
+  
+  #Metadata_Pt_type Contrasts
+  emm_Metadata_Pt_type <- emmeans(fit_interact, pairwise ~ Metadata_Pt_type | Metadata_Layer + Metadata_Cortex_region)
+  print("!!!!!!!!!!!DISEASE GROUP CONTRASTS!!!!!!!!!!!!!!!")
+  print(emm_Metadata_Pt_type$contrasts)
+  
+  #Brain Region Contrasts
+  emm_Metadata_Cortex_region <- emmeans(fit_interact, pairwise ~ Metadata_Cortex_region | Metadata_Layer + Metadata_Pt_type)
+  print("!!!!!!!!!!!BRAIN REGION CONTRASTS!!!!!!!!!!!!!!!")
+  print(emm_Metadata_Cortex_region$contrasts)
+  
+  #Cortex Layer Contrasts
+  emm_Metadata_Cortex_region <- emmeans(fit_interact, pairwise ~ Metadata_Layer | Metadata_Cortex_region + Metadata_Pt_type)
+  print("!!!!!!!!!!!CORTEX LAYERS CONTRASTS!!!!!!!!!!!!!!!")
+  print(emm_Metadata_Cortex_region$contrasts)
+  
+  
+  #Data for single observations
+  data <- Morph_data
+  data$Metadata_Pt_type <- ordered(as.factor(data$Metadata_Pt_type), levels = c("CTRL", "AD", "CJD"))
+  data$Metadata_Layer <- ordered(as.factor(data$Metadata_Layer), levels = c("sGM", "dGM", "WM"))
+  
+  
+  #Graph settings
+  y_limit <- max(data[[feature_name]], na.rm = TRUE)
+  
+  dev.new()
+  #Create ggplot
+  pd <- position_dodge(.5)
+  ggplot(data = interaction_plot, aes(x = Metadata_Layer, y = yvar, 
+                                      group = Metadata_Pt_type, linetype = Metadata_Pt_type, shape = Metadata_Pt_type)) +
+    facet_nested(~ "Brain Region" + Metadata_Cortex_region)+
+    geom_point(aes(x = Metadata_Layer, 
+                   y = .data[[feature_name]], fill=as.factor(Patient), color=as.factor(Metadata_Pt_type)), 
+               data = data, size = 1.5, alpha=0.8, stroke = 0.5,
+               position = position_jitterdodge(dodge.width = 0.5, jitter.width = 1)) +
+    geom_point(size = 2.5, fill ="black", color="black", alpha = 0.6, position = pd) +
+    geom_line(alpha=0.6, color = "black", position = pd) +
+    theme_grey()+
+    scale_fill_manual(values = c("Patient 1"="#b15928", "Patient 2" = "#ffff99", "Patient 3" = "#6a3d9a",
+                                 "Patient 4" = "#cab2d6", "Patient 5" = "#ff7f00", "Patient 6" = "#fdbf6f",
+                                 "Patient 7" = "#e31a1c", "Patient 8" = "#fb9a99", "Patient 9" = "#34a02c",
+                                 "Patient 10"="#b2df8a", "Patient 11" = "#1f78b4", "Patient 12" = "#a6cee3"))+
+    scale_color_manual(values = c("CJD" = "#C6D300", "AD" = "#D6390E", "CTRL" = "#390F6E"),
+                       guide = guide_legend(override.aes = list(shape = c(21, 24, 22),alpha = 1, size = 1.5)))+
+    scale_shape_discrete(name = "Estimated Mean",
+                         breaks = c("CTRL", "AD", "CJD"),
+                         labels = c("CTRL", "AD", "CJD")) +
+    scale_shape_manual(values = c("CTRL" = 21,  
+                                  "AD" = 24,    
+                                  "CJD" = 22))+ 
+    ggtitle(title) +
+    ylim(NA, y_limit) +  # Set y-axis limit dynamically based on the protein data
+    labs(x = "Cortex Layer", y = "Morphometry Feature Z-score", shape = "Estimated Mean", color = "ROIs", linetype=NULL) +
+    guides(fill = "none", 
+           shape = guide_legend(order = 2),
+           linetype = guide_legend(order = 3))+
+    theme(text = element_text(size = 12), plot.title = element_text(size = 16),
+          strip.text.x = element_text(face = "bold", size = 10),
+          legend.title = element_text(size = 8.5), legend.text = element_text(size = 7), legend.key.size = unit(1, "lines"), 
+          legend.spacing = unit(1.05, "cm"),legend.margin = margin(t = -20))
+}
+
+#Plot - Feature Maximum Radius
+interaction_plot("Total_AreaShape_MaximumRadius", "Total - Maximum Radius")
+
+#Plot - Feature Mean Radius
+interaction_plot("Total_AreaShape_MeanRadius", "Total - Mean Radius")
+
+#Extra Plot - Feature Texture Correlation(.2)
+interaction_plot("Total_Texture_Correlation_IBA1_3_02_256", "Total - Texture Correlation(.2)")
+
+
+#################MOFA#########################
+#Rename ROI variable in datasets
+colnames(Morph_data)[11] <- "ROI (Label)"
+colnames(Protein_data)[6] <- "ROI (Label)"
+
+#Combine datasets (left-join to preserve excess morph data)
+combined_data <- left_join(Morph_data, Protein_data, by = "ROI (Label)")
+#Metadata
+meta_data <- combined_data[1:12]
+
+#Prepare View 1 - Proteins
+Protein <- combined_data[,120:ncol(combined_data)]
+Protein <- scale(Protein, scale = T, center = T) #Standardize and center
+Protein <- as.matrix(t(Protein)) # Transpose
+
+#Prepare View 2 - Morphometrics
+Morphology <- combined_data[,c(13:85)]
+Morphology <- as.matrix(t(Morphology)) #Transpose
+
+#Matrix list
+data <- list(Protein,Morphology)
+
+#Create MOFA-object 
+MOFAobject <- create_mofa(data)
+plot_data_overview(MOFAobject)
+
+#Training-parameters - getting and keeping the default options
+data_opts <- get_default_data_options(MOFAobject)
+head(data_opts)
+data_opts <- get_default_data_options(MOFAobject)
+model_opts <- get_default_model_options(MOFAobject)
+head(model_opts)
+train_opts <- get_default_training_options(MOFAobject)
+head(train_opts)
+MOFAobject <- prepare_mofa(
+  object = MOFAobject,
+  data_options = data_opts,
+  model_options = model_opts,
+  training_options = train_opts
+)
+
+#Train and save actual MOFA Object
+outfile = here("Data", "MOFAmodelmicrominimal.hdf5")
+MOFAobject.trained <- run_mofa(MOFAobject, outfile, use_basilisk = TRUE)
+
+#Load and confirm MOFA Object
+model <- load_model(outfile)
+plot_data_overview(model)
+
+#Add actual metadata, rename and reorder
+meta_data <- cbind(MOFAobject@samples_metadata[["sample"]],meta_data)
+colnames(meta_data)[1] <- "sample"
+colnames(meta_data)[7] <- "Brain Region"
+colnames(meta_data)[9] <- "Cortex Layer"
+colnames(meta_data)[10] <- "Disease Group"
+meta_data$`Cortex Layer` <- factor(meta_data$`Cortex Layer`, levels=c("sGM", "dGM", "WM"))
+meta_data$`Disease Group` <- factor(meta_data$`Disease Group`, levels=c("CTRL", "AD", "CJD"))
+samples_metadata(model) <- meta_data #save
+
+#VARIANCE DECOMPOSITION
+head(model@cache$variance_explained$r2_total[[1]]) # Total R^2
+plot_variance_explained(model, x ="view", y ="factor", plot_total = T)#Overview
+head(model@cache$variance_explained$r2_per_factor[[1]]) #R^2 per factor
+plot_variance_explained(model, x="view", y="factor") + #Per factor
+  scale_x_discrete(labels = c(
+    expression("Protein ("*R^2*" = 58.3%)"),
+    expression("Morphometrics ("*R^2*" = 72.2%)")
+  ))
+
+
+#FEATURE LOADINGS
+views <- c("view_1", "view_2")
+plots <- list()
+# Generate plots and store them in a list
+for(i in 1:2) {
+  for(j in 1:3) {
+    p <- plot_top_weights(model, view = views[i], factor = j, nfeatures = 5
+    ) + theme(text = element_text(size = 15))
+    plots[[length(plots) + 1]] <- p
+  }
+}
+#Display loadings
+dev.new()
+grid.arrange(grobs = plots, nrow = 2, ncol = 3)
+
+
+#Generate new list isolating factor 1
+plots <- list()
+for (i in 1:2) {
+    p <- plot_top_weights(model, view = views[i], factor = 1, nfeatures = 5) +
+      theme(text = element_text(size = 12),
+            plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "lines"))
+    plots[[length(plots) + 1]] <- p
+}
+#Rename morphometric features before saving
+levels(plots[[2]][["data"]][["feature_id"]]) <- c(
+  "Soma - Texture Correlation(.3)",
+  "Total - Maximum Radius",
+  "Total - Mean Radius",
+  "Total - Texture Correlation(.2)",
+  "Total - Texture Correlation(.3)"
+)
+# Align the plots to ensure the same width
+aligned_plots <- align_plots(plots[[1]], plots[[2]], align = "v", axis = "lr")
+grid.arrange(grobs = aligned_plots, nrow = 2, ncol = 1)
+
+
+#Extra - Check (linear) regression estimate between (top) features and factor values
+plot_data_scatter(model, view = "view_1", #Change view
+                  factor=1, #Change Factor
+                  features=5,
+                  add_lm=T,
+                  text_size = 0,
+                  color_by="Disease Group",
+                  shape_by = "Cortex Layer")
+
+
+plot_data_scatter(model, view = "view_2", #Change view
+                  factor=1, #Change Factor
+                  features=5,
+                  add_lm=T,
+                  color_by="Disease Group",
+                  shape_by = "Cortex Layer")
+
+
+#VISUALISATION OF FACTORS
+#Overall overview
+p <- plot_factor(model, 
+                 factors = c(1:3),
+                 group_by = "Brain Region",
+                 color_by = "Disease Group",
+                 shape_by = "Cortex Layer", #Cortex Layer or Brain Region
+                 dot_size = 2,        # change dot size
+                 dodge = T,           # dodge points with different colors
+                 legend = T,          # remove legend
+                 add_violin = T,      # add violin plots,
+                 violin_alpha = 0.25,  # transparency of violin plots
+                 show_missing = T
+)
+p
+
+#Proper Visualisation of Factor 1 in isolation
+factors <- get_factors(model, factors = 1, as.data.frame = T) #Extract factor 1
+factor_1 <- merge(factors, meta_data, by="sample") # Add metadata
+
+ggplot(data = factor_1, aes(x = `Cortex Layer`, y = value, color=as.factor(`Disease Group`))) +
+  facet_nested(~ "Brain Region" + `Brain Region`)+
+  geom_violin(alpha=0.75, position =position_dodge(width=0.7), scale="width", width=0.5)+
+  geom_point(aes(x=`Cortex Layer`, y = value, shape = `Disease Group`, group= `Disease Group`, fill=as.factor(Patient.x)), 
+             data = factor_1, size = 1.5, alpha=0.8, stroke = 0.8,
+             position = position_jitterdodge(dodge.width = 0.7, jitter.width = 1)) +
+  theme_grey()+
+  scale_fill_manual(values = pt_colors)+
+  scale_color_manual(values = disease_color,
+                     guide = guide_legend(override.aes = list(shape = c(21, 24, 22),alpha = 1, size = 1.5)))+
+  scale_shape_manual(values = c("CTRL" = 21,  
+                                "AD" = 24,    
+                                "CJD" = 22))+ 
+  labs(x = "Cortex Layer", y = "Value of Factor 1", color = "Disease Group", fill=NULL, shape=NULL) +
+  guides(fill = "none",
+         shape = "none")+
+  theme(text = element_text(size = 12), plot.title = element_text(size = 20),
+        strip.text.x = element_text(face = "bold", size = 10),
+        legend.title = element_text(size = 8.5), legend.text = element_text(size = 7), legend.key.size = unit(1, "lines"), 
+        legend.spacing = unit(1.05, "cm"),legend.margin = margin(t = -20))
+
+
+
+
+
+#############SCORPIUS - Microglial Reactivity Grading############
+##Prepare Data
+#Standardize Protein Data
+Geomx_Matrix <- Protein_data %>%
+  select(1:34) %>%                           # Select the first 33 columns (metadata)
+  bind_cols(Protein_data %>%                  # Bind columns with scaled protein expression
+              select(36:52) %>%               # Select columns 35 to 51
+              scale(center=T, scale=T)) 
+
+
+#Rename ROI identifiers
+colnames(Geomx_Matrix)[6] <- "ROI (Label)"
+colnames(Morph_data)[11] <- "ROI (Label)"
+
+#Combine Datasets
+IBA1_matrix <- merge(Geomx_Matrix, Morph_data, by = "ROI (Label)") #SCORPIUS only works on complete data, thus merging instead of left_join
+
+#Subset Grey matter ROIs
+IBA1_matrix <- subset(IBA1_matrix, Metadata_Layer!="WM")
+
+##Isolate feature sets
+expression <- as.matrix(cbind(IBA1_matrix[,35:51], IBA1_matrix[,63:135]))#Including protein and Morp features, excluding cluster distribution data
+
+##Actual SCORPIUS analysis
+space <- reduce_dimensionality(expression, "pearson")#Pearson as distance metric, spearman produces stochastic results
+Interest_tract <- factor(IBA1_matrix$Disease, levels = c("CTRL", "AD", "CJD"))
+BrainRegion <- as.factor(IBA1_matrix$BrainRegion)
+Patient <- as.factor(IBA1_matrix$Patient.x)
+traj <- infer_trajectory(space, maxit=1000, approx_points = 2) #Keep the trajectory straight
+
+plot_data_combined <- data.frame(
+  Dim1 = space[, "Comp1"],  # Component 1 and 2
+  Dim2 = space[, "Comp2"],
+  Interest_tract = Interest_tract,
+  BrainRegion = BrainRegion,
+  Patient <- Patient
+) # Prepare Plot data
+draw_trajectory_plot(space, Interest_tract, traj$path, contour = TRUE, progression_group_palette = disease_color)+
+  geom_point(data = plot_data_combined, aes(x = Dim1, y = Dim2, shape = BrainRegion, color = Interest_tract, fill=Interest_tract), size = 2.6) +
+  scale_shape_manual(values = c(21, 25))+
+  guides(shape = guide_legend(title = "Brain Region"), 
+         color = guide_legend(title = "Disease Group"),
+         fill="none") # Plot
+
+#Feature importance
+gimp <- gene_importances(
+  expression, 
+  traj$time, 
+  num_permutations = 10, 
+  num_threads = 8, 
+  ntree = 10000,
+  ntree_perm = 1000
+)
+print(gimp, n=20)
+
+# Select significant features
+gene_sel <- gimp$gene[gimp$`pvalue` < .05]
+expr_sel <- scale_quantile(expression[, gene_sel]) #Quantile Scaling
+
+# Combine Disease (Interest_tract) and other annotations (metadata)
+combined_annotation <- data.frame(
+  Disease = Interest_tract,
+  Sex = IBA1_matrix$Sex.x,
+  Age = IBA1_matrix$Age.x,
+  BrainRegion = IBA1_matrix$BrainRegion,
+  Layer = IBA1_matrix$CortexLayer,
+  Patient = IBA1_matrix$Patient.x,
+  Reactivity = traj$time,
+  Identifier = IBA1_matrix$`ROI (Label)`
+)
+combined_annotation$Disease <- ordered(as.factor(combined_annotation$Disease), levels = c("CTRL", "AD", "CJD"))
+combined_annotation$Layer <- ordered(as.factor(combined_annotation$Layer), levels=c("sGM", "dGM"))
+
+# Rowname and transpose
+rownames(combined_annotation) <- rownames(IBA1_matrix)
+expr_sel <- t(expr_sel)
+
+# Reorder combined_annotation by Reactivity
+combined_annotation <- combined_annotation[order(combined_annotation$Reactivity), ]
+
+# Reorder expr_sel matrix according to the new order of combined_annotation
+expr_sel <- expr_sel[, rownames(combined_annotation)]
+
+#change colnames
+combined_annotation <- rename(combined_annotation,
+                              `Brain Region` = BrainRegion,
+                              `Reactivity Score` = Reactivity)
+
+# Colors
+annotation_colors <- list(
+  "Disease Group" = disease_color,
+  "Brain Region" = region_color,
+  "Patient ID" = pt_colors,
+  "Cortex Layer" = layer_color,
+  "Reactivity Score" = colorRamp2(c(min(combined_annotation$Reactivity), max(combined_annotation$Reactivity)), c("white", "red")),
+  "Sex" = c("Female"="violet", "Male"="#63C5DA"),
+  "Age" = colorRamp2(c(50, 100), c("#99d8c9","#005824"))
+)
+
+# Create Heatmap annotations for columns
+col_annotation <- HeatmapAnnotation(
+  "Patient ID" = combined_annotation$Patient,
+  Sex = combined_annotation$Sex,
+  Age = combined_annotation$Age,
+  "Disease Group" = combined_annotation$Disease,
+  "Brain Region" = combined_annotation$`Brain Region`,
+  "Cortex Layer" = combined_annotation$Layer,
+  "Reactivity Score" = combined_annotation$`Reactivity Score`,
+  col = annotation_colors, show_legend = c(FALSE,TRUE, TRUE, TRUE, TRUE, TRUE, TRUE),
+  annotation_name_gp = gpar(fontface="bold", fontsize = 10)
+)
+
+#Rename Morph RowNames 
+rownames(expr_sel)[rownames(expr_sel) == "Soma_Texture_DifferenceEntropy_IBA1_3_02_256"] <- "Soma - Texture Difference Entropy(.2)"
+rownames(expr_sel)[rownames(expr_sel) == "Soma_Texture_DifferenceEntropy_IBA1_3_00_256"] <- "Soma - Texture Difference Entropy(.0)"
+rownames(expr_sel)[rownames(expr_sel) == "Soma_Texture_InfoMeas1_IBA1_3_03_256"] <- "Soma - Texture Info Meas1(.3)"
+rownames(expr_sel)[rownames(expr_sel) == "Total_AreaShape_MeanRadius"] <- "Total - Mean Radius"
+
+#Set Proteins as italics
+custom_row_names <- rownames(expr_sel)
+italic_rows <- c("IBA1", "CSF1R", "CD11b", "P2ry12", "TMEM119", "CD39", "CD68", "CD11c", "HLA DR")
+custom_row_names[rownames(expr_sel) %in% italic_rows] <- 
+  sapply(custom_row_names[rownames(expr_sel) %in% italic_rows], 
+         function(x) as.expression(bquote(italic(.(x)))))
+
+# Create a heatmap with ComplexHeatmap
+ht <- Heatmap(
+  expr_sel,                                  
+  name = "Rescaled Feature Value",           
+  column_title = "ROIs", row_title = "Features",
+  top_annotation = col_annotation,          
+  cluster_rows = TRUE,                      
+  cluster_columns = FALSE,                  
+  show_row_names = TRUE,                    
+  row_names_gp = gpar(fontsize = 8.5),
+  row_labels = custom_row_names, 
+  show_column_names = FALSE,                
+  col = colorRamp2(c(min(expr_sel), mean(expr_sel), max(expr_sel)),
+                   viridis(3)),               
+  heatmap_legend_param = list(title = "Scaled Feature Value",
+                              legend_height = unit(60, "cm"),  
+                              legend_direction = "horizontal",  
+                              title_position = "topcenter") 
+)
+
+# Draw the heatmap
+draw(ht, heatmap_legend_side="bottom", annotation_legend_side="right", legend_grouping = "original")
+
+#Reverse Trajector
+traj <- reverse_trajectory(traj)#Optional!!!!!: Only if the Trajectory needs to be reversed for correct heatmap plot (run it if the heatmap is reversed)
+
+sessionInfo()

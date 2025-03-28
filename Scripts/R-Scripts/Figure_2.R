@@ -1,0 +1,452 @@
+#####Libraries
+library(here)
+library(tidyverse)
+library(factoextra)
+library(MASS)
+library(caret)
+library(Boruta)
+library(ComplexHeatmap)
+library(circlize)
+library(rstatix)
+library("JLutils")
+library("fmsb")
+library(lme4)
+library(glmmTMB)
+library(performance)
+library(emmeans)
+library(psych)
+library(rmcorr)
+library(ggcorrplot)
+library(caroline)
+library(umap)
+library(plotly)
+
+
+#Colors
+patient_colors <- c("Patient 1"="#b15928", "Patient 2" = "#ffff99", "Patient 3" = "#6a3d9a",
+  "Patient 4" = "#cab2d6", "Patient 5" = "#ff7f00", "Patient 6" = "#fdbf6f",
+  "Patient 7" = "#e31a1c", "Patient 8" = "#fb9a99", "Patient 9" = "#34a02c",
+  "Patient 10"="#b2df8a", "Patient 11" = "#1f78b4", "Patient 12" = "#a6cee3")
+
+cluster_colors <- c("1" = "#007BFF", "2"="#DC143C", "3"="#fdd4b3")
+
+patient_group_colors <- c("CTRL" = "#390F6E", "AD" = "#D6390E", "CJD" = "#C6D300")
+
+
+#Data
+maindir <- here("Data", "Cellprofiler (morphology)", "Feature selected profiles")
+single_profile <- read.csv(here(maindir, "SingleMicroglia_profile.csv"))
+labels <- single_profile[,1:22]
+features <- single_profile[23:ncol(single_profile)]
+
+geomx_data <- read.csv(here("Data", "GeoMx (protein)", "3. HK normalized Log2 Transformed GeoMx Data.csv"))
+names(geomx_data) <- gsub("\\.", " ", names(geomx_data))
+geomx_data <- geomx_data %>% select(-S6, -GAPDH, -`Histone H3`)#Remove Housekeepers
+
+#-----------------------------------------------------------------------------------------
+
+######PART I - Clustering and Feature Importance Evaluation ##########
+##Evaluate Optimal Number of Clusters
+#Elbow plot
+elbow <- fviz_nbclust(features,FUN = hcut, method = "wss", title = "Elbow Plot") + theme(text = element_text(size = 18))
+elbow + ggtitle("")
+
+#Silhouette plot
+silhouette <- fviz_nbclust(features, FUN = hcut, method = "silhouette") + theme(text = element_text(size = 20))
+silhouette + ggtitle("")
+
+
+###Clustering
+d <- get_dist(features, method="spearman") # Dissimilarity Matrix - Spearman for non-normal distributed morphometric features
+hc <- hclust(d, method = "ward.D2" ) # Clustering with Ward Type 2 linkage
+
+plot(hc) #Visualize dendogram of the single IBA1 Objects
+sub_group <- cutree.order(hc, k = 3) #Cut the clustering into desired number of k
+
+table(sub_group) # Number of objects in each group
+
+#Visualization
+rect.hclust(hc, k = 3, border = 2:9)
+
+#Save
+single_profile <- single_profile %>% #Transfer the cluster classification back to the original single object dataset
+  mutate(Cluster = sub_group, .after=Slide)
+single_profile$Cluster <- as.factor(single_profile$Cluster)
+
+#UMAP
+set.seed(42)
+umap3D = umap(features, n_components = 3, random_state = 15)
+#Prepare plot
+layout <- data.frame(umap3D[["layout"]]) 
+final <- cbind(layout,single_profile$Cluster)
+colnames(final) <- c("UMAP1", "UMAP2", "UMAP3", "Cluster")
+#UMAp plot
+ggplot(final, aes(x = UMAP2, y = UMAP3, color = Cluster)) +
+  geom_point(size = 0.5) +
+  scale_color_manual(values = cluster_colors, labels = c("1", "2.1", "2.2")) +
+  theme_minimal()+
+  guides(color = guide_legend(override.aes = list(size = 2.5)))
+
+
+#Evaluation of Clustering using Jackknife Cross Validation
+Cross_validation <- lda(x = single_profile[24:ncol(single_profile)], grouping = single_profile$Cluster, CV = TRUE)
+confusionMatrix(Cross_validation$class, as.factor(single_profile$Cluster))
+
+
+
+
+###BORUTA - Identification of most discriminating features
+
+#Prepare data
+combine_for_Boruta <- cbind(Cluster = single_profile$Cluster, features)
+combine_for_Boruta$Cluster <- as.factor(combine_for_Boruta$Cluster)
+#Run Boruta
+boruta.train <- Boruta(Cluster~., data = combine_for_Boruta, doTrace = 2)
+print(boruta.train)
+boruta.bank <- TentativeRoughFix(boruta.train)
+print(boruta.bank)
+
+#Visualize 
+dev.new() #NB: Full plot need to be visualized in full screen!!!!!!!!
+par(mar = c(17,2,2,2))
+plot(boruta.bank, xlab = "", xaxt = "n")
+lz <- lapply(1:ncol(boruta.bank$ImpHistory),function(i)
+  boruta.bank$ImpHistory[is.finite(boruta.bank$ImpHistory[,i]),i])
+names(lz) <- colnames(boruta.bank$ImpHistory)
+Labels <- sort(sapply(lz,median))
+axis(side = 1,las=2,labels = names(Labels),
+     at = 1:ncol(boruta.bank$ImpHistory), cex.axis = 0.65)
+Labels # Ranking
+
+
+
+
+###Visualization of Clusters and Discriminating Features
+heat_data <- single_profile
+heat_data <- heat_data %>% 
+  mutate(Cluster = recode(Cluster, "1"="1", "2"="2.1", "3"="2.2"))
+
+heat_features <- t(features)
+
+#Prepare data
+#Colors
+heatmap_color_u <- colorRamp2(breaks = c(2, 0, -2), colors = c("yellow", "black", "blue"))
+annotation_colors <- list(
+  "IBA1+ Object Cluster" = c("1" = "#007BFF","2.1"="#DC143C", "2.2"="#fdd4b3"))
+
+#Annotations
+ha <- HeatmapAnnotation("IBA1+ Object Cluster" = heat_data$Cluster,
+                        col = annotation_colors, show_legend = c(FALSE),
+                        annotation_name_gp = gpar(fontface="bold"))
+
+
+#Rows to highlight (Discriminating Features evaluated through Boruta)
+rows_to_highlight <- c("Total_Texture_InfoMeas1_IBA1_3_03_256", "Total_AreaShape_MajorAxisLength", "Soma_AreaShape_Zernike_0_0", 
+                       "Total_Texture_SumEntropy_IBA1_3_02_256", "Soma_AreaShape_Solidity", "Total_AreaShape_Extent")
+
+# Set stylings for row names and make selected rows unique
+row_idx <- which(rownames(heat_features) %in% rows_to_highlight)
+fontsizes <- rep(5, nrow(heat_features))
+fontsizes[row_idx] <- 6
+fontcolors <- rep('black', nrow(heat_features))
+fontcolors[row_idx] <- 'red'
+fontfaces <- rep('plain',nrow(heat_features))
+fontfaces[row_idx] <- 'bold'
+rowAnno <- rowAnnotation(rows = anno_text(rownames(heat_features), gp = gpar(fontsize = fontsizes, fontface = fontfaces, col = fontcolors)))
+
+# Reorder Dendrogram
+dend <- reorder(as.dendrogram(hclust(get_dist(heat_features, method = "spearman"))), -rowMeans(heat_features), agglo.FUN = mean)
+
+# Find Specified features in dendrogram
+dend_idx <- which(order.dendrogram(dend) %in% which(rownames(heat_features) %in% rows_to_highlight))
+
+# Draw the heatmap 
+htmp <- Heatmap(heat_features, name="Z-score", 
+                column_title = "Single IBA1+ Objects", row_title = "Morphometric Features",
+                top_annotation = ha, 
+                col = heatmap_color_u,
+                cluster_rows = dend, right_annotation = rowAnno, show_row_names = F,
+                column_split = 3, 
+                clustering_method_columns = "ward.D2",
+                clustering_method_rows = "ward.D2",
+                clustering_distance_columns = "spearman",
+                clustering_distance_rows = "spearman",
+                heatmap_legend_param = list(legend_height = unit(60, "cm"),  # Adjust the height of the legend
+                                            legend_direction = "horizontal",  # Place the legend horizontally
+                                            title_position = "topcenter"))
+
+
+htmp
+
+
+### Visualisation of medians of the  Discriminating Features for each Cluster - Spider Charts
+features_of_interest <- c("Total_Texture_InfoMeas1_IBA1_3_03_256", "Total_AreaShape_MajorAxisLength", "Soma_AreaShape_Zernike_0_0", 
+                         "Total_Texture_SumEntropy_IBA1_3_02_256", "Soma_AreaShape_Solidity", "Total_AreaShape_Extent") #Based of Borutas Selection
+
+#To long format
+morph_profile <- cbind(Cluster = single_profile[,"Cluster"], single_profile[,features_of_interest])
+morph_profile <- morph_profile%>%
+  pivot_longer(!Cluster, names_to="features", values_to = "value")
+
+#Get median values of features of interest for each cluster
+morph_summary <- morph_profile %>%
+  group_by(Cluster, features) %>%
+  get_summary_stats(value, type="median")
+morph_summary <- morph_summary[,-c(3,4)]
+
+#Prepare data for Spider Charts
+morph_summary <-spread(morph_summary, "features", "median")
+morph_summary <- morph_summary %>% remove_rownames %>% column_to_rownames(var="Cluster")
+
+#Identify maximal and minimal values
+max <- rep(1, ncol(morph_summary))
+min <- rep(-1, ncol(morph_summary))
+
+max_min <- as.data.frame(rbind(max, min))
+rownames(max_min) <- c("Max", "Min")
+colnames(max_min) <- features_of_interest
+morph_summary <- rbind(max_min, morph_summary)
+
+#Rename Morphometric Features (Same order as previously defined)
+colnames(morph_summary) <- c("Total - Texture InfoMeas1(.3)", "Total - Major Axis Length", "Soma - Zernike 0.0", 
+                               "Total - Texture Sum Entropy(.2)", "Soma - Solidity", "Total - Extent")
+
+
+#Spider Charts settings
+titles <- c("IBA1+ Object Cluster 1", "IBA1+ Object Cluster 2.1", "IBA1+ Object Cluster 2.2")#CHANGE NAMES
+
+#Visualize and save spider charts
+op <- par(mar = c(1, 1, 6, 1))
+par(mfrow = c(1,3))
+for(i in 1:3){
+  radarchart(
+    df = morph_summary[c(1, 2, i+2), ], vlabels = colnames(morph_summary), 
+    axistype = 1, caxislabels = c(-1, -0.5, 0, 0.5, 1), pcol = cluster_colors[i],
+    pfcol = scales::alpha(cluster_colors[i], 0.5), plwd = 1.5, plty = 1.5,
+    cglcol = "lightgrey", cglty = 1, cglwd = 0.8, calcex = 1,
+    axislabcol = "#1C1C1C", vlcex = 1.1, title = titles[i], cex.main = 2
+  )
+}
+par(op)
+par(mfrow = c(1,1))
+
+
+
+
+#Save new single_profile
+write.csv(single_profile, file=file.path(maindir, "SingleMicroglia_profile_with_cluster.csv"),
+          row.names = FALSE) 
+
+
+
+
+###### PART II - Distribution Analysis #########
+
+###1. Cluster densities
+total_cells_per_image <- single_profile %>%
+  group_by(ImageNumber, Metadata_Sample_number, Patient, Metadata_Pt_type, Metadata_Cortex_region, Metadata_Layer, FileName_ROI_Mask)%>% 
+  count() %>% mutate(FileName_ROI_Mask = substr(FileName_ROI_Mask, 6, nchar(FileName_ROI_Mask) - 4)) #Cluster Object Count
+colnames(total_cells_per_image)[8] <- "n_cells_in_image" #rename
+colnames(total_cells_per_image)[7] <- "Region" #rename
+
+total_clusters_per_image <- single_profile %>% 
+  group_by(ImageNumber, Cluster) %>% 
+  count() %>% 
+  ungroup() %>% 
+  complete(
+    ImageNumber, 
+    Cluster = factor(1:3),
+    fill = list(n = 0)
+  ) # Long format of n clusters per image
+
+total_clusters_per_image <- merge(total_cells_per_image, total_clusters_per_image, by = "ImageNumber")#Merge
+colnames(total_clusters_per_image)[10] <- "n_clustercells_in_image"#Rename
+
+#Adjust for area
+area_numbers <- read.csv(here("Data", "Cellprofiler (morphology)", "ROI Areas.csv"), sep=";")
+area_numbers$Area <- area_numbers$Area/1000000 # From um to mm
+
+total_clusters_per_image <- merge(total_clusters_per_image, area_numbers, by = "Region")
+total_clusters_per_image$cell_per_area <- (total_clusters_per_image$n_clustercells_in_image/total_clusters_per_image$Area)
+total_clusters_per_image$cell_per_area <- round(total_clusters_per_image$cell_per_area) #Round to true count data
+
+
+#Modelling
+statistics_n_cluster <- total_clusters_per_image %>%
+  group_by(Cluster) %>%
+  group_modify(~ {
+    current_cluster <- current_cluster <- .y$Cluster
+    #Print Cluster 
+    print(paste("------------------------CLUSTER ", current_cluster, "--------------------------"))
+    
+    if(current_cluster == 2) { # For detected zero-inflation
+      model <- glmmTMB(cell_per_area ~ Metadata_Pt_type * Metadata_Cortex_region * Metadata_Layer + 
+                         (1|Patient/Metadata_Sample_number),
+                       ziformula = ~1,   # Zero-inflation formula (constant probability of zero, no predictors)
+                       family = nbinom1(link = "log"),   # Positive values modeled with negative binomial type 1
+                       data = .x)
+    } else {
+      # For other clusters, apply the regular linear mixed model (no hurdle or zero-inflation)
+      model <- glmmTMB(cell_per_area ~ Metadata_Pt_type * Metadata_Cortex_region * Metadata_Layer + 
+                         (1 | Patient/Metadata_Sample_number), 
+                       family = nbinom1(link = "log"), 
+                       data = .x)
+    }
+    #Model performance
+    print(model)
+    print(check_model(model))
+    print(check_overdispersion(model))
+    print(check_zeroinflation(model))
+    
+    # Perform emmeans for later extraction
+    emm <- emmip(model, Metadata_Pt_type ~ Metadata_Layer + Metadata_Cortex_region, plotit = FALSE, CIs = TRUE, type="response")
+    
+    #Evaluate Contrasts
+    #Metadata_Pt_type
+    emm_Metadata_Pt_type <- emmeans(model, pairwise ~ Metadata_Pt_type | Metadata_Layer + Metadata_Cortex_region)
+    print(emm_Metadata_Pt_type$contrasts)
+    #Metadata_Layer
+    emm_Metadata_Layer <- emmeans(model, pairwise ~ Metadata_Layer | Metadata_Pt_type + Metadata_Cortex_region)
+    print(emm_Metadata_Layer$contrasts)
+    #Metadata_Cortex_region
+    emm_Metadata_Cortex_region <- emmeans(model, pairwise ~ Metadata_Cortex_region | Metadata_Layer + Metadata_Pt_type)
+    print(emm_Metadata_Cortex_region$contrasts)
+    
+    # Extract estimates, SE and CI
+    estimates_se <- as.data.frame(emm)
+    
+    return(estimates_se)
+  }) %>%
+  ungroup()  # Remove grouping for final combined dataframe
+
+
+#Prepare data for plotting
+statistics_n_cluster$Metadata_Pt_type <- factor(statistics_n_cluster$Metadata_Pt_type, levels = c("CTRL", "AD", "CJD"))
+statistics_n_cluster$Metadata_Layer <- factor(statistics_n_cluster$Metadata_Layer, levels = c("sGM", "dGM", "WM"))
+
+y_limit <- max(total_clusters_per_image$cell_per_area, na.rm = TRUE)
+
+#Plot
+p <- ggplot(statistics_n_cluster, aes(x=Cluster, y=yvar)) +
+  facet_grid("Cortex Layer" + Metadata_Layer~"Brain Region" + Metadata_Cortex_region)+
+  geom_bar(aes(x=Cluster, y=yvar, fill=Metadata_Pt_type, color=Cluster), stat="identity", 
+           position=position_dodge(0.9), size=0.75, alpha=0.6) +
+  geom_errorbar(aes(fill = Metadata_Pt_type, ymin=LCL, ymax=UCL, color = Cluster), stat="identity", width=.2,
+                position=position_dodge(0.9), color = "#595959", alpha = 1)+
+  theme(panel.grid.major = element_line(size = 1))+
+  scale_fill_manual(values=patient_group_colors)+
+  scale_color_manual(values = cluster_colors, name = "IBA1+ Object Cluster",  
+                     labels = c("1", "2.1", "2.2"))+
+  ylab(expression("Number of IBA1+ Object Clusters /" ~ mm^2))+
+  xlab("IBA1+ Object Cluster")+
+  guides(fill=guide_legend(title="Estimated Mean"))+
+  theme(plot.title = element_text(hjust = 0.5))+
+  expand_limits(x = 0, y = 0)+
+  ggtitle("")+
+  theme(text = element_text(size = 10, face="bold"),strip.text = element_text(face = "bold"),
+        legend.text = element_text(size = 6), 
+        legend.title = element_text(size = 8),
+        legend.key.size = unit(0.5, "cm"),
+        legend.position = "bottom",         
+        legend.direction = "horizontal",
+        legend.title.position = "top")+
+  scale_x_discrete(labels = c("1" = "1", "2" = "2.1", "3" = "2.2"))+
+  guides(color=guide_legend(override.aes=list(fill=NA)))
+p
+
+
+
+###Stacked Bar Chart of Distribution of the total object population
+#Prepare data
+total_cells_per_group <- single_profile %>% group_by(Metadata_Pt_type, Metadata_Cortex_region, Metadata_Layer) %>% count() # Total Object Count
+colnames(total_cells_per_group)[4] <- "n_total_cell_count"#Rename
+
+grouped_cluster_count <- single_profile  %>% group_by(Metadata_Pt_type, Metadata_Cortex_region, Metadata_Layer) %>%
+  count(Cluster) #Cluster count per permutation group
+colnames(grouped_cluster_count)[5] <- "n_cluster_in_group" #rename
+
+cluster_distribution <- left_join(grouped_cluster_count, total_cells_per_group, 
+                                  by = c("Metadata_Pt_type"="Metadata_Pt_type", "Metadata_Cortex_region"="Metadata_Cortex_region", "Metadata_Layer"="Metadata_Layer"))%>% 
+  mutate(percentage = (n_cluster_in_group/n_total_cell_count)*100) #Get Percentage of Each Cluster in each permutation group
+
+#Reorder
+cluster_distribution$Metadata_Pt_type <- factor(cluster_distribution$Metadata_Pt_type, levels = c("CTRL", "AD", "CJD"))
+cluster_distribution$Metadata_Layer <- factor(cluster_distribution$Metadata_Layer, levels = c("sGM", "dGM", "WM"))
+
+#Stacked Bar Chart
+p_stacked <- ggplot(cluster_distribution, aes(x=Metadata_Pt_type, fill = Cluster, y=percentage))+
+  facet_grid("Cortex Layer" + Metadata_Layer ~ "Brain Region" + Metadata_Cortex_region)+
+  geom_bar(position="fill", stat="identity")+
+  scale_fill_manual(values = cluster_colors, labels = c("1", "2.1", "2.2"))+
+  ylab("Proportion (%) of IBA1+ Object Clusters") +
+  xlab("Disease Group")+
+  scale_y_continuous(labels = percent)+
+  guides(fill=guide_legend(title="IBA1+ Object Cluster"))+
+  theme(text = element_text(size = 10, face="bold"),strip.text = element_text(face = "bold"),
+        legend.text = element_text(size = 6), 
+        legend.title = element_text(size = 8),
+        legend.key.size = unit(0.5, "cm"),
+        legend.position = "bottom",         
+        legend.direction = "horizontal",
+        legend.title.position = "top")
+p_stacked
+
+
+
+###Correlation with GeoMx Protein Data
+#Prepare Cluster data
+count_per_image <- single_profile %>% group_by(ImageNumber) %>% count(Cluster) # Total Object count
+count_per_image <- count_per_image %>% 
+  left_join(total_cells_per_image, by = join_by(ImageNumber == ImageNumber))%>%
+  mutate(clusterpercentage_per_image = (n/n_cells_in_image)*100)%>%
+  select(-c("n_cells_in_image")) #Add cluster data, calculate percentage
+count_per_image_merged <- merge(count_per_image, total_clusters_per_image, by=c("ImageNumber", "Cluster")) #merge with additional from previous analysis
+count_per_image_merged <- reshape(count_per_image_merged, idvar = "ImageNumber", timevar = "Cluster", direction="wide", sep = "_") # To wide Format
+count_per_image_merged[is.na(count_per_image_merged)] <- 0 #Replace NaNs with zero 
+
+
+#Rename columns for merging
+colnames(count_per_image_merged)[8] <- "ROI (Label)"
+colnames(geomx_data)[6] <- "ROI (Label)"
+
+#Combine GeoMx and Cellprofiler Distribution data
+combined_data <- merge(geomx_data, count_per_image_merged, by = "ROI (Label)")
+
+#Rename Column names
+combined_data <- combined_data %>% rename("IBA1+ Object Cluster 1 Proportion" = clusterpercentage_per_image_1,
+                                          "IBA1+ Object Cluster 2.1 Proportion" = clusterpercentage_per_image_2,
+                                          "IBA1+ Object Cluster 2.2 Proportion" = clusterpercentage_per_image_3)
+
+#Isolate columns
+columns <- c("IBA1+ Object Cluster 2.2 Proportion", "IBA1+ Object Cluster 2.1 Proportion", "IBA1+ Object Cluster 1 Proportion",
+             "HLA DR", "CD11c", "CD9", "CD68", "CD39", "CD40", "Ki 67", 
+             "IBA1", "CD45", "CD11b", "P2ry12", "TMEM119", "MERTK", "CD31", "CSF1R", "CTSD", "GPNMB")
+
+#Repeated measurement correlation
+dist_rmc_mat <- rmcorr_mat(participant = Patient, 
+                           variables = columns,
+                           dataset = combined_data,
+                           CI.level = 0.95)
+
+#Isolate correct correlations
+isolated_matrix <- dist_rmc_mat$matrix[-c(1:3), c(1:3)]
+
+#Visualization
+ggcorrplot(isolated_matrix, method = "circle") + 
+  theme(legend.title = element_text(size = 10),legend.text = element_text(size = 8))+
+  guides(
+    fill = guide_colorbar(
+      title = expression(bold(r)[bold(rm)]),                  
+      barwidth = 1,                      
+      barheight = 5                     
+    ))
+
+
+
+###Save tab-delimited data for MoBIE
+cluster_ID <- single_profile %>% select(ImageNumber, ObjectNumber, Cluster)
+write.delim(cluster_ID, here("Data", "Cellprofiler (morphology)","MoBIE", "Microglia_clusterID.txt"), 
+            row.names=FALSE, sep = "\t")
+
+sessionInfo()
+
