@@ -17,7 +17,9 @@ Figure_2 employs a package ("JLutils") that needs to fetched remotely from GitHu
 The R-scripts utilize relative pathfinding with the "here" package and should be able to run with the correct corresponding data. 
 
 The recommended order of executed R-scripts to see the complete data analysis and results:
+
 0- QC_Segments_Targets (utilizing Nanostring's own Geoscript for Segment and Target QC Evaluation - optional)
+
 1- GeoMx Evaluation and Clean-up
 
 2- Figure_1
