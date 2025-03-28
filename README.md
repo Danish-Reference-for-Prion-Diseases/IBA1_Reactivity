@@ -2,7 +2,12 @@
 
 Code and data for article: "Combined protein and morphological profiling characterize microglial reactivity across human neurodegenerative diseases and neocortical regions".
 
-If not done beforehand, please extract ALL contents of the .zip file before running R-scripts or R-markdown files through Rstudio using the R-project.
+Software needed:
+- R (Ver. 4.3.0)
+- R-studio (Ver. 1.4.1717)
+(- Cellprofiler (Ver. 4.2.6))
+
+If not done beforehand, please extract ALL contents from the .zip folder before running R-scripts or R-markdown files through Rstudio using the R-project.
 
 Please install missing packages/dependencies before running each R-script (using default install.packages() function in R):
 Note, some packages are from Bioconductor that will need to be installed through it (https://www.bioconductor.org/install/). This includes packages: 
