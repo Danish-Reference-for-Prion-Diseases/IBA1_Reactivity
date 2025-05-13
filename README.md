@@ -1,7 +1,5 @@
 # IBA1_Protein_Morph_Reactivity
 
-Code and data for article: "Combined protein and morphological profiling characterize microglial reactivity across human neurodegenerative diseases and neocortical regions".
-
 Software needed:
 R (Ver. 4.3.0)
 
