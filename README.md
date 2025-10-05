@@ -203,6 +203,7 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
 
   **Figure_3**
+  
      R version 4.5.0 (2025-04-11 ucrt)
      Platform: x86_64-w64-mingw32/x64
      Running under: Windows 11 x64 (build 22631)
@@ -332,6 +333,7 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
 
   **Figure_7**
+  
      R version 4.5.0 (2025-04-11 ucrt)
      Platform: x86_64-w64-mingw32/x64
      Running under: Windows 11 x64 (build 22631)
@@ -379,6 +381,7 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
         
   **Baseline Tables**
+  
      R version 4.5.0 (2025-04-11 ucrt)
      Platform: x86_64-w64-mingw32/x64
      Running under: Windows 11 x64 (build 22631)
