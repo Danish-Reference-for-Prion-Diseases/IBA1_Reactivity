@@ -28,9 +28,8 @@ data_with_cluster <- data_with_cluster %>% mutate(figuresColorScheme=case_when(
   Cluster=="Cluster3"~"225-165-0-220"))
 
 #Rename columns before merging geomx data and cellprofiler data
-colnames(geomx_data)[6] <- "ROI_Label" #Rename
-colnames(data_with_cluster)[5] <- "ROI_Label" #Rename
-
+geomx_data <- geomx_data %>% rename("ROI_Label" = "ROI..Label.")
+data_with_cluster <- data_with_cluster %>% rename("ROI_Label" = "Metadata_FileLocation")
 data_with_cluster$ROI_Label <- gsub("mask-", "", data_with_cluster$FileName_ROI_Mask)#Create ROI Label in morph data
 data_with_cluster$ROI_Label <- gsub(".tif", "", data_with_cluster$ROI_Label)#Create ROI Label in morph data
 
@@ -48,29 +47,4 @@ data_with_id[is.na(data_with_id)] <- 0
 write.delim(data_with_id, here(file_path, "Microglia_total_withID.txt"),
             row.names = FALSE, sep = "\t")
 
-
-#####Legends for Mobie
-#ROI - CD11c expression
-ggplot() +
-  scale_color_viridis(limits = c(6, 10)) +
-  geom_point(aes(x = 1, y = 1, color = 5), alpha = 0) +
-  guides(color = guide_colorbar(title = "CD11c Expression (Log2)")) +
-  theme_void() +
-  theme(legend.title = element_text(hjust = 0.5),
-        legend.spacing.y = unit(0.5, "cm"),
-        legend.position = "bottom",        axis.ticks.length=unit(.5, "cm"))
-
-#Segments - Object Cluster ID
-par(family = "sans")
-plot(1, 1, type = "n", xlab = "", ylab = "", xlim = c(0, 2), ylim = c(0, 2), axes = FALSE)
-legend(
-  x = "center",
-  legend = c("Cluster 1", "Cluster 2.1", "Cluster 2.2", "Outlier"), 
-  horiz = FALSE, 
-  bty = "n", 
-  pch = 20, 
-  col = c("#007BFF", "#DC143C", "#E1A500", "lightgrey"),
-  text.col = "black",
-  cex = 1, 
-  pt.cex = 2
-)
+sessionInfo()

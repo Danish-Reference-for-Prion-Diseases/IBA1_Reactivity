@@ -6,25 +6,40 @@ library(tidyverse)
 library(readxl)
 library(gridExtra)
 library(TidyDensity)
+library(lme4)
+library(emmeans)
+library(ggh4x)
+
+###Colors
+pt_colors <- c("Patient 1"  = "#b15928", "Patient 2"  = "#ffff99",
+"Patient 3"  = "#6a3d9a", "Patient 4"  = "#cab2d6",
+"Patient 5"  = "#ff7f00", "Patient 6"  = "#fdbf6f",
+"Patient 7"  = "#e31a1c", "Patient 8"  = "#fb9a99",
+"Patient 9"  = "#34a02c", "Patient 10" = "#b2df8a",
+"Patient 11" = "#1f78b4", "Patient 12" = "#a6cee3")
+
+disease_colors <-c("CTRL" = "#390F6E", "AD"   = "#D6390E", "CJD"  = "#C6D300")
+
+
 
 #Custom Functions
-process_data <- function(dataset){
+process_data <- function(dataset, column){
   #Transpose (inverse) rows and columns
   matrix_transposed = t(dataset)
   
   #Split, Rename columns, remove redundant rows and merge again
-  matrix_transposed_split1 <- matrix_transposed[,1:30] # Split
+  matrix_transposed_split1 <- matrix_transposed[,1:column] # Split
   colnames(matrix_transposed_split1) <- matrix_transposed_split1[1,] # Rename
   matrix_transposed_split1 <- matrix_transposed_split1[-c(1,2,3,4),] # Remove rendundant rows
   
-  matrix_transposed_split2 <- matrix_transposed[,31:ncol(matrix_transposed)]
+  matrix_transposed_split2 <- matrix_transposed[,(column+1):ncol(matrix_transposed)]
   colnames(matrix_transposed_split2) <- matrix_transposed_split2[4,]
   matrix_transposed_split2 <- matrix_transposed_split2[-c(1,2,3,4),]
   
   Data_Matrix <- bind_cols(matrix_transposed_split1, matrix_transposed_split2) # merge back
   
   #Transform variables to correct type (factorize and order incl.)
-  Data_Matrix[,32:ncol(matrix_transposed)] <- sapply(Data_Matrix[,32:ncol(matrix_transposed)], as.numeric)
+  Data_Matrix[,(column+2):ncol(matrix_transposed)] <- sapply(Data_Matrix[,32:ncol(matrix_transposed)], as.numeric)
   
   #rename columns
   colnames(Data_Matrix)[4] <- "Celltype"
@@ -64,6 +79,8 @@ process_data <- function(dataset){
   )) %>% pull(patient)
   
   Data_Matrix <- cbind(Patient, Data_Matrix)
+  Data_Matrix$Patient <- ordered(as.factor(Data_Matrix$Patient), levels = c("Patient 1", "Patient 2", "Patient 3", "Patient 4", "Patient 5", "Patient 6",
+                                                                          "Patient 7", "Patient 8","Patient 9","Patient 10", "Patient 11", "Patient 12")) 
   
   #Rename slide.name to slides numbers
   Data_Matrix <- Data_Matrix %>% mutate(Slide=case_when(
@@ -119,6 +136,42 @@ process_data <- function(dataset){
   
   Data_Matrix <- cbind(Sex, Data_Matrix)
   
+  #Add post-mortem delay
+  Postdelay <- Data_Matrix %>% mutate(postdelay=case_when(
+    Patient=="Patient 1"~3,
+    Patient=="Patient 2"~1,
+    Patient=="Patient 3"~NA,
+    Patient=="Patient 4"~1,
+    Patient=="Patient 5"~1,
+    Patient=="Patient 6"~14,
+    Patient=="Patient 7"~NA,
+    Patient=="Patient 8"~1,
+    Patient=="Patient 9"~1,
+    Patient=="Patient 10"~4,
+    Patient=="Patient 11"~1,
+    Patient=="Patient 12"~2
+  ))%>% pull(postdelay)
+  
+  Data_Matrix <- cbind(Postdelay, Data_Matrix)
+  Data_Matrix$Postdelay <- as.numeric(Data_Matrix$Postdelay)
+  
+  Formalinfixed <- Data_Matrix %>% mutate(formalinfixed=case_when(
+    Patient=="Patient 1"~34,
+    Patient=="Patient 2"~35,
+    Patient=="Patient 3"~NA,
+    Patient=="Patient 4"~43,
+    Patient=="Patient 5"~27,
+    Patient=="Patient 6"~275,
+    Patient=="Patient 7"~182,
+    Patient=="Patient 8"~133,
+    Patient=="Patient 9"~86,
+    Patient=="Patient 10"~119,
+    Patient=="Patient 11"~77,
+    Patient=="Patient 12"~35
+  ))%>% pull(formalinfixed)
+  
+  Data_Matrix <- cbind(Formalinfixed, Data_Matrix)
+  Data_Matrix$Formalinfixed <- as.numeric(Data_Matrix$Formalinfixed)
   
   #Change NB to CTRL
   Data_Matrix <- Data_Matrix %>% mutate(Disease=case_when(
@@ -149,21 +202,32 @@ process_data <- function(dataset){
 
 normalization_visualization <- function(feature) {
   ggplot(Data_Matrix_evaluate, aes(x = Disease, y = !!sym(feature))) +  
-    facet_wrap(BrainRegion~ CortexLayer) +
-    geom_boxplot(size = 1, aes(fill = Disease), position = position_dodge(width = 0.8)) +
-    geom_jitter(size = 2, aes(x = Disease, color = Sample_ID), position = position_dodge(width = 0.8))+
-    scale_fill_manual(values = c("CTRL" = "#390F6E", "AD" = "#D6390E", "CJD" = "#C6D300")) +
+    facet_wrap(BrainRegion ~ CortexLayer) +
+    geom_boxplot(size = 1, aes(color = Disease),
+                 position = position_dodge(width = 0.8),
+                 outlier.shape = NA) +
+    geom_jitter(size = 2, alpha = 0.75, stroke = 0.8,
+                aes(x = Disease, fill = Patient),
+                position = position_dodge(width = 0.8),
+                shape = 21) +
+    scale_color_manual(values = disease_colors) +
+    scale_fill_manual(values = pt_colors) +
+    labs(
+      y = "Log2 Protein Expression",
+      x = "Disease",
+      title = feature
+    ) +
     theme(
-      axis.text.x = element_text(angle = 45, hjust = 1, size = 14),  
-      axis.text.y = element_text(size = 14),  
-      axis.title.x = element_text(size = 16),  
-      axis.title.y = element_text(size = 16),  
-      plot.title = element_text(size = 18, hjust = 0.5),  
-      legend.title = element_text(size = 14),  
-      legend.text = element_text(size = 12),   
+      axis.text.x   = element_text(angle = 45, hjust = 1, size = 14),  
+      axis.text.y   = element_text(size = 14),  
+      axis.title.x  = element_text(size = 16),  
+      axis.title.y  = element_text(size = 16),  
+      plot.title    = element_text(size = 18, hjust = 0),  
+      legend.title  = element_text(size = 14),  
+      legend.text   = element_text(size = 12),   
       panel.grid.major = element_line(size = 0.5),  
       panel.grid.minor = element_line(size = 0.25),  
-      plot.margin = margin(10, 10, 10, 10)   
+      plot.margin   = margin(10, 10, 10, 10)   
     ) +
     guides(fill = "none")
 }
@@ -171,7 +235,7 @@ normalization_visualization <- function(feature) {
 pivot_data <- function(data, columns) {
   data %>%
     pivot_longer(
-      cols = 36:columns,                    
+      cols = 38:columns,                    
       names_to = "Protein",            
       values_to = "count"              
     )
@@ -234,7 +298,7 @@ MatrixArea <- read_excel(here(datadir, "Other Normalization Methods", "Area_Norm
 
 ####Operation - Metadata completion and Log2 Transformation for all previous data files
 data_list <- list(evaluateData, matrixHK, MatrixNegative, MatrixArea)
-data_list <- lapply(data_list, process_data)
+data_list <- lapply(data_list, process_data, column=30)
 list2env(setNames(data_list, c("Data_Matrix_evaluate", "processed_HKData", "processed_negativeData", "processed_areaData")), envir = .GlobalEnv)
 ############################################################################################################
 
@@ -316,13 +380,13 @@ normalization_visualization("AOI nuclei count")
 ###############Evaluate After Normalization
 #ALL To long format
 #Evaluation Data
-Data_Matrix_evaluate_long <- pivot_data(Data_Matrix_evaluate, 55)
+Data_Matrix_evaluate_long <- pivot_data(Data_Matrix_evaluate, 75) #number of total columns of dataset as argument
 #HK data
-HKData_long <- pivot_data(processed_HKData, 55)
+HKData_long <- pivot_data(processed_HKData, 68) #number of total columns of dataset as argument
 #Negative Igg Data
-Negative_long <- pivot_data(processed_negativeData, 55)
+Negative_long <- pivot_data(processed_negativeData, 68) #number of total columns of dataset as argument
 #Area data
-Area_long <- pivot_data(processed_areaData, 55)
+Area_long <- pivot_data(processed_areaData, 68) #number of total columns of dataset as argument
 
 ###Boxplots
 #Boxplot - Raw Data
@@ -365,11 +429,99 @@ area_normalized
 grid.arrange(raw, hk_normalized, negative_normalized, area_normalized, nrow = 2, ncol = 2)  
 
 
-
 #######
 #From All Evaluation, Housekeeper normalization was chosen to be proceeded with
 write.csv(processed_HKData, here(datadir, "3. HK normalized Log2 Transformed GeoMx Data.csv"),
           row.names = FALSE)
+
+
+
+
+
+
+
+
+
+#####Extra
+#Interaction plots of non-normalized housekeeper proteins
+interaction_plot <- function(feature_name) {
+  fit_interact <- lmer(Data_Matrix_evaluate[[feature_name]] ~ Disease * BrainRegion * CortexLayer + (1 | Patient/Sample_ID), data = Data_Matrix_evaluate)
+  
+  print("!!!!!!!!!!!!!!!!!Model Specifications!!!!!!!!!!!!!!")
+  print(fit_interact)
+  
+  windows(width = 15, height = 15)
+  print(performance::check_model(fit_interact))
+  
+  # Reorder for plotting
+  interaction_plot_data <- emmip(fit_interact, Disease ~ CortexLayer | BrainRegion, plotit = FALSE, CIs = TRUE)
+  interaction_plot_data$Disease <- ordered(as.factor(interaction_plot_data$Disease), levels = c("CTRL", "AD", "CJD"))
+  interaction_plot_data$CortexLayer <- ordered(as.factor(interaction_plot_data$CortexLayer), levels = c("sGM", "dGM", "WM"))
+  
+  # Disease Contrasts
+  emm_disease <- emmeans(fit_interact, pairwise ~ Disease | CortexLayer + BrainRegion)
+  print("!!!!!!!!!!!DISEASE GROUP CONTRASTS!!!!!!!!!!!!!!!")
+  print(emm_disease$contrasts)
+  
+  # Brain Region Contrasts
+  emm_brainregion <- emmeans(fit_interact, pairwise ~ BrainRegion | CortexLayer + Disease)
+  print("!!!!!!!!!!!BRAIN REGION CONTRASTS!!!!!!!!!!!!!!!")
+  print(emm_brainregion$contrasts)
+  
+  # Cortex Layer Contrasts
+  emm_cortexlayer <- emmeans(fit_interact, pairwise ~ CortexLayer | BrainRegion + Disease)
+  print("!!!!!!!!!!!CORTEX LAYERS CONTRASTS!!!!!!!!!!!!!!!")
+  print(emm_cortexlayer$contrasts)
+  
+  # Prepare data for plotting
+  data <- Data_Matrix_evaluate
+  data$Disease <- ordered(as.factor(data$Disease), levels = c("CTRL", "AD", "CJD"))
+  data$CortexLayer <- ordered(as.factor(data$CortexLayer), levels = c("sGM", "dGM", "WM"))
+  
+  
+  pd <- position_dodge(.5)
+  p1 <- ggplot(data = interaction_plot_data, aes(x = CortexLayer, y = yvar, 
+                                                 group = Disease, linetype = Disease, shape = Disease)) +
+    facet_nested(~ "Brain Region" + BrainRegion) +
+    geom_point(aes(x = CortexLayer, 
+                   y = .data[[feature_name]], fill = as.factor(Patient), color = as.factor(Disease)), 
+               data = data, size = 1.5, alpha = 0.8, stroke = 0.5,
+               position = position_jitterdodge(dodge.width = 0.5, jitter.width = 1)) +
+    geom_point(size = 2.5, fill = "black", color = "black", alpha = 0.6, position = pd) +
+    geom_line(alpha = 0.6, color = "black", position = pd) +
+    theme_grey() +
+    scale_fill_manual(values = pt_colors) +
+    scale_color_manual(values = disease_colors,
+                       guide = guide_legend(override.aes = list(shape = c(21, 24, 22), alpha = 1, size = 1.5))) +
+    scale_shape_manual(values = c("CTRL" = 21, "AD" = 24, "CJD" = 22)) +
+    ggtitle(feature_name) +
+    labs(x = "Cortex Layer", y = "Log2 Protein Expression (non-normalized)", shape = "Estimated Mean", color = "IBA1 segments", linetype = NULL) +
+    guides(fill = "none", shape = guide_legend(order = 2), linetype = guide_legend(order = 3)) +
+    theme(text = element_text(size = 12), plot.title = element_text(size = 20),
+          strip.text.x = element_text(face = "bold", size = 10), axis.title.y = element_text(size = 8),
+          legend.title = element_text(size = 8.5), legend.text = element_text(size = 7), legend.key.size = unit(1, "lines"), 
+          legend.spacing = unit(1.05, "cm"), legend.margin = margin(t = -20))
+  
+  all_contrasts_df <- bind_rows(
+    as.data.frame(emm_disease$contrasts) %>% mutate(contrast_type = "Disease"),
+    as.data.frame(emm_brainregion$contrasts) %>% mutate(contrast_type = "BrainRegion"),
+    as.data.frame(emm_cortexlayer$contrasts) %>% mutate(contrast_type = "CortexLayer")
+  ) %>%
+    select(contrast_type, contrast, Disease, everything()) %>%
+    mutate(significant = ifelse(p.value < 0.05, "Yes", "No"))
+  
+  return(list(
+    plot_interaction = p1,
+    contrasts_df = all_contrasts_df
+  ))
+}
+
+interaction_plot("S6")
+interaction_plot("GAPDH")
+interaction_plot("Histone H3")
+
+
+
 
 
 sessionInfo()

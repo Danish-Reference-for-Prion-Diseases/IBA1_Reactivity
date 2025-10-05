@@ -9,7 +9,6 @@ library("ComplexHeatmap")
 library("circlize")
 
 
-
 #Custom Functions---------------------------------------------------------------
 #Rename Metadata to correct format
 recode_grouping_columns <- function(data){
@@ -22,9 +21,9 @@ recode_grouping_columns <- function(data){
 
 
 #Make aggregated profiles from the single cell dataset, including weights for each image 
-weighted_aggregate <- function(merged_data){
+weighted_aggregate <- function(merged_data, keep_columns, numb_extra_metadata){
   #get relevant annotations
-  annotations <- merged_data[,c(1,2,3,5,7,8,10,12,17)] %>% #Annotations/metadata that you wish to save #IMPORTANT TO INCLUDE FileName_Mask FOR MOBIE!!!!!!!!!
+  annotations <- merged_data[, keep_columns] %>%
     group_by(ImageNumber) %>%
     summarise(across(everything(), ~paste0(unique(.), collapse = "|")))
   
@@ -32,7 +31,7 @@ weighted_aggregate <- function(merged_data){
   merged_data$weight <- 1/nrow(merged_data)
   
   #aggregate the features
-  data_aggregated <- collap(merged_data[,(feature_column_start+2):ncol(merged_data)], by = merged_data$ImageNumber, w = merged_data$weight)
+  data_aggregated <- collap(merged_data[,(feature_column_start+numb_extra_metadata):ncol(merged_data)], by = merged_data$ImageNumber, w = merged_data$weight)
   
   #remove original single weight column
   merged_data = merged_data[,-ncol(merged_data)]
@@ -44,7 +43,7 @@ weighted_aggregate <- function(merged_data){
   #change FileName_Mask column for later incorporation with GeoMx data
   data_aggregated$FileName_ROI_Mask <- gsub("mask-", "", data_aggregated$FileName_ROI_Mask)
   data_aggregated$FileName_ROI_Mask <- gsub(".tif", "", data_aggregated$FileName_ROI_Mask)
-  colnames(data_aggregated)[9] <- "ROI (Label)"
+  colnames(data_aggregated)[length(keep_columns)] <- "ROI (Label)"
   
   return(data_aggregated)
 }
@@ -75,9 +74,8 @@ remove_noise <- function(data, labels, filter_method, cutoff){
   }
 }
 
-
 eval_heatmap <- function(Data_Matrix, column_title, row_title){
-  features <- t(Data_Matrix[,21:ncol(Data_Matrix)])
+  features <- t(Data_Matrix[,feature_column_start:ncol(Data_Matrix)])
   
   #Colors
   heatmap_color_u <- colorRamp2(breaks = c(2, 0, -2), colors = c("yellow", "black", "blue"))
@@ -108,7 +106,6 @@ main_dir <- here("Data", "Cellprofiler (morphology)")
 #Microglia Soma and Total Cell Datasets from Cellprofiler
 microglia_soma <- recode_grouping_columns(read.csv(here(main_dir, "Filtered_Microglia_Soma.csv"))) #PrimaryObject (Filtered from the SecondaryObject module)
 microglia_total <- recode_grouping_columns(read.csv(here(main_dir, "Microglia_total.csv"))) #SecondaryObject
-
 
 
 ##Remove redundant features and variables (Blocklisting)------------------------
@@ -173,7 +170,6 @@ aggr_plot <- aggr(features, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE
                   labels=names(data), cex.axis=.7, gap=3, ylab=c("Histogram of missing data","Pattern")) #Summarizing plot and pattern plot
 
 
-
 #3.NORMALIZE - (Robust standardization with Median Absolute Devation) 
 normalized_features <- normalize_MAD(features)
 colnames(normalized_features) <- substr(colnames(normalized_features), 1, nchar(colnames(normalized_features)) - 2) #Remove the z-suffix
@@ -192,7 +188,6 @@ dim(normalized_features) #Evaluate
 #5. Remove noisy features
 # Arguments (1. The dataset, 2. labels, 3. filter_method - either "mean" or "min", 4. standard deviation cutoff)
 normalized_features <- remove_noise(normalized_features, labels, "min", 1)
-
 
 #6. Correlation thresholding (filter highly correlated features)
 excluded <- findCorrelation(cor(normalized_features), cutoff = 0.9, verbose = FALSE)
@@ -213,10 +208,9 @@ outliers <- mahalnobis_merged[mahalnobis_scores > cutoff ,] #Identify outliers
 Filtered_data <- anti_join(mahalnobis_merged, outliers) #Remove the outliers
 
 
-
 #Feature and Object Filtering Evaluation----------------------------------------
 #Unfiltered Features
-data_merged[,21:ncol(data_merged)] <- normalize_MAD(data_merged[,21:ncol(data_merged)]) #MAD normalize the raw data
+data_merged[,feature_column_start:ncol(data_merged)] <- normalize_MAD(data_merged[,feature_column_start:ncol(data_merged)]) #MAD normalize the raw data
 unfiltered_heat <- eval_heatmap(data_merged, paste("Unfiltered Single IBA1+ Objects (n =", nrow(data_merged),")"), paste("Unfiltered Morphometric Features (n =", ncol(features),")"))
 unfiltered_heat
 
@@ -287,11 +281,86 @@ Slide <- Filtered_data %>% mutate(slide=case_when(
 ready_singlecell_data <- cbind(Slide, ready_singlecell_data)
 
 
+# Add Age
+Age <- ready_singlecell_data %>% mutate(age=case_when(
+  Patient=="Patient 1"~53,
+  Patient=="Patient 2"~56,
+  Patient=="Patient 3"~92,
+  Patient=="Patient 4"~64,
+  Patient=="Patient 5"~57,
+  Patient=="Patient 6"~77,
+  Patient=="Patient 7"~66,
+  Patient=="Patient 8"~78,
+  Patient=="Patient 9"~83,
+  Patient=="Patient 10"~85,
+  Patient=="Patient 11"~59,
+  Patient=="Patient 12"~83
+)) %>% pull(age)
 
+ready_singlecell_data <- cbind(Age, ready_singlecell_data)
+ready_singlecell_data$Age <- as.numeric(ready_singlecell_data$Age)
+
+# Add Sex
+Sex <- ready_singlecell_data %>% mutate(sex=case_when(
+  Patient=="Patient 1"~"Female",
+  Patient=="Patient 2"~"Female",
+  Patient=="Patient 3"~"Female",
+  Patient=="Patient 4"~"Female",
+  Patient=="Patient 5"~"Male",
+  Patient=="Patient 6"~"Female",
+  Patient=="Patient 7"~"Male",
+  Patient=="Patient 8"~"Female",
+  Patient=="Patient 9"~"Female",
+  Patient=="Patient 10"~"Male",
+  Patient=="Patient 11"~"Male",
+  Patient=="Patient 12"~"Male"
+)) %>% pull(sex)
+
+ready_singlecell_data <- cbind(Sex, ready_singlecell_data)
+
+# Add post-mortem delay
+Postdelay <- ready_singlecell_data %>% mutate(postdelay=case_when(
+  Patient=="Patient 1"~3,
+  Patient=="Patient 2"~1,
+  Patient=="Patient 3"~NA,
+  Patient=="Patient 4"~1,
+  Patient=="Patient 5"~1,
+  Patient=="Patient 6"~14,
+  Patient=="Patient 7"~NA,
+  Patient=="Patient 8"~1,
+  Patient=="Patient 9"~1,
+  Patient=="Patient 10"~4,
+  Patient=="Patient 11"~1,
+  Patient=="Patient 12"~2
+)) %>% pull(postdelay)
+
+ready_singlecell_data <- cbind(Postdelay, ready_singlecell_data)
+ready_singlecell_data$Postdelay <- as.numeric(ready_singlecell_data$Postdelay)
+
+# Add formalin-fixed time
+Formalinfixed <- ready_singlecell_data %>% mutate(formalinfixed=case_when(
+  Patient=="Patient 1"~34,
+  Patient=="Patient 2"~35,
+  Patient=="Patient 3"~NA,
+  Patient=="Patient 4"~43,
+  Patient=="Patient 5"~27,
+  Patient=="Patient 6"~275,
+  Patient=="Patient 7"~182,
+  Patient=="Patient 8"~133,
+  Patient=="Patient 9"~86,
+  Patient=="Patient 10"~119,
+  Patient=="Patient 11"~77,
+  Patient=="Patient 12"~35
+)) %>% pull(formalinfixed)
+
+ready_singlecell_data <- cbind(Formalinfixed, ready_singlecell_data)
+ready_singlecell_data$Formalinfixed <- as.numeric(ready_singlecell_data$Formalinfixed)
 
 
 #AGGREGATE DATASET (MORPHOLOGICAL FEATURES FOR AGGREGATED OBJECTS PER IMAGE)
-aggregated_data <- weighted_aggregate(ready_singlecell_data)
+keep_columns <- c(1,2,3,4,5,6,7,9,11,12,14,16,21) #Annotations/metadata that you wish to save #IMPORTANT TO INCLUDE FileName_ROI_Mask FOR MOBIE!!!!!!!!!
+numb_metadata <- 6 #Number of metadata manually included above
+aggregated_data <- weighted_aggregate(ready_singlecell_data, keep_columns, numb_metadata)
 
 
 #Lasly Export for further downstream analysis:
@@ -302,6 +371,6 @@ write.csv(ready_singlecell_data, file=here(main_dir, "Feature selected profiles"
 #......Aggregated cell profiles
 write.csv(aggregated_data, file=here(main_dir, "Feature selected profiles", "AggregatedMicroglia_profile.csv"),
           row.names = FALSE)
-
+ 
 
 sessionInfo()

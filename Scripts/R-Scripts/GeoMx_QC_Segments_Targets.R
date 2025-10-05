@@ -253,8 +253,7 @@ plot_concordance <- function(mat, col = rgb(0, 0, 0, 0.5),
 
 #Data and output folder
 library(here)
-load(here("Data", "GeoMx (protein)", "Norm_data_from_DSPDA.RData"))
-outputFolder <- here("Figures and Tables", "GeoMx Evaluation")
+load(here("Data", "GeoMx (protein)", "Export_Data_From_DSP.RData"))
 
 
 #### preliminaries ----------------------------------
@@ -294,8 +293,6 @@ for (varname in names(cols)) {
     main = "Negative controls"
   )
 }
-
-
 
 
 #### plot HK concordance: --------------------------
