@@ -38,9 +38,9 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
   **QC_Segments_Targets**
 
-    R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     R version 4.5.0 (2025-04-11 ucrt)
+     Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
     LAPACK version 3.12.1
@@ -65,9 +65,9 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
   **GeoMx evaluation and Clean-up**
   
-    R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     R version 4.5.0 (2025-04-11 ucrt)
+     Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
     LAPACK version 3.12.1
@@ -101,9 +101,9 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
   **Figure_1+2:**
 
-    R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     R version 4.5.0 (2025-04-11 ucrt)
+     Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
       LAPACK version 3.12.1
@@ -159,8 +159,8 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
   **Cellprofiler Clean-up, normalization and feature selection**
   
       R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
       LAPACK version 3.12.1
@@ -203,9 +203,9 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
 
   **Figure_3**
-    R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     R version 4.5.0 (2025-04-11 ucrt)
+     Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
       LAPACK version 3.12.1
@@ -254,9 +254,9 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
   **Add_ID for MoBIE**
   
-    R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     R version 4.5.0 (2025-04-11 ucrt)
+     Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
       LAPACK version 3.12.1
@@ -285,9 +285,9 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
   **SupplementaryFigure_6**
   
-    R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     R version 4.5.0 (2025-04-11 ucrt)
+      Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
       LAPACK version 3.12.1
@@ -332,9 +332,9 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
 
   **Figure_7**
-    R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     R version 4.5.0 (2025-04-11 ucrt)
+     Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
       LAPACK version 3.12.1
@@ -379,9 +379,9 @@ To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Mo
 
         
   **Baseline Tables**
-    R version 4.5.0 (2025-04-11 ucrt)
-    Platform: x86_64-w64-mingw32/x64
-    Running under: Windows 11 x64 (build 22631)
+     R version 4.5.0 (2025-04-11 ucrt)
+     Platform: x86_64-w64-mingw32/x64
+     Running under: Windows 11 x64 (build 22631)
 
     Matrix products: default
       LAPACK version 3.12.1
