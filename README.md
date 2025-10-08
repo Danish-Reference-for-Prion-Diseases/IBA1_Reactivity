@@ -30,6 +30,7 @@ The recommended order of executed R-scripts to see the complete data analysis an
 (5. Add_ID for MoBIE.R)
 6. SupplementaryFigure_6
 7. Figure_7
+   
 Baseline Tables.R is standalone and can be executed whenever.
 
 To inspect the CellProfiler pipeline (found at /Scripts/Cellprofiler – IBA1 Morphology Extraction.cpproj), CellProfiler needs to be installed (https://cellprofiler.org/). Version 4.2.6 was used to create this particular pipeline.
