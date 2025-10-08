@@ -3,8 +3,11 @@
 Code and data for article: "Combined neocortical protein and morphological profiling of reactive microglia across Alzheimer’s and Creutzfeldt-Jakob disease".
 
 Raw data can be found here:
-GeoMx protein source data ->  /Data/GeoMx (protein)/1. IBA1 Raw Geomx Dataset.xlsx
-Morphometrical Data extracted from CellProfiler -> /Data/Cellprofiler (morphology)/
+
+1. GeoMx protein source data ->  /Data/GeoMx (protein)/1. IBA1 Raw Geomx Dataset.xlsx
+
+2. Morphometrical Data extracted from CellProfiler -> /Data/Cellprofiler (morphology)/
+
 
 If not done beforehand, please extract ALL contents of the .zip file before running R-scripts or R-markdown files through Rstudio using the R-project.
 
