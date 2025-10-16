@@ -30,7 +30,7 @@ The recommended order of executed R-scripts to see the complete data analysis an
 2. Figure_1+2.R
 3. Cellprofiler Clean-up, normalization and feature selection.R
 4. Figure_3.R
-(5. Add_ID for MoBIE.R)
+5. Add_ID for MoBIE.R
 6. SupplementaryFigure_6
 7. Figure_7
 
